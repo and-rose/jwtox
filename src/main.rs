@@ -30,6 +30,8 @@ pub enum Error {
     ParseIntError(std::num::ParseIntError),
 }
 
+const JWT_ICON: char = '✻';
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct JWTOXArgs {
@@ -146,23 +148,27 @@ fn secs_str_to_date(secs: &str) -> Result<DateTime<chrono::Utc>, Error> {
     Ok(date)
 }
 
+fn title(s: &str) -> String {
+    format!("{} {}", JWT_ICON, s)
+}
+
 fn print_header(header: &Header) {
     let header_json = serde_json::to_string_pretty(header).expect("Failed to serialize header");
-    println!("\n{}", "* Header".bold().cyan());
+    println!("\n{}", title("Header").bold().cyan());
     println!("{}", header_json.cyan());
 }
 
 fn print_payload(payload: &serde_json::Value) {
     let payload_json = serde_json::to_string_pretty(payload).expect("Failed to serialize payload");
-    println!("\n{}", "* Payload".bold().yellow());
+    println!("\n{}", title("Payload").bold().yellow());
     println!("{}", payload_json.yellow());
 }
 
 fn print_signature(signature: &str, valid: Option<bool>) {
     match valid {
-        Some(true) => println!("\n{}", "* Signature ✓".bold().magenta()),
-        Some(false) => println!("\n{}", "* Signature ✗".bold().magenta()),
-        None => println!("\n{}", "* Signature".bold().magenta()),
+        Some(true) => println!("\n{}", title("Signature ✓").bold().magenta()),
+        Some(false) => println!("\n{}", title("Signature ✗").bold().magenta()),
+        None => println!("\n{}", title("Signature").bold().magenta()),
     }
     println!("{}", signature.magenta());
 }
