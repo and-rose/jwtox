@@ -44,13 +44,24 @@ jobs:
           file: Cargo.toml
           field: package.version
 
-      # Check that git tag matches version. Quit if it doesn't.
-      - name: Check version
+      # Check that git tag matches version. Quit if it doesn't. Be careful because windows and linux have different syntax
+      - name: Check version (Linux)
+        shell: bash
+        if: {{ runner.os == 'Linux' }}
         run: |
-          if [ "${{ steps.get_version.outputs.value }}" != "${{ github.ref_name }}" ]; then
+          if [ "${{ steps.get_version.outputs.value }}" != "${{ github.ref }}" ]; then
             echo "Tag does not match version in Cargo.toml"
             exit 1
           fi
+
+      - name: Check version (Windows)
+        shell: pwsh
+        if: {{ runner.os == 'Windows' }}
+        run: |
+          if (${{ steps.get_version.outputs.value }} -ne ${{ github.ref }}) {
+            Write-Host "Tag does not match version in Cargo.toml"
+            exit 1
+          }
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
