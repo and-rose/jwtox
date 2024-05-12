@@ -80,8 +80,6 @@ jobs:
             *.tar.gz
             *.zip
       - name: Create release
-        if: |
-          github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(release)')
         uses: softprops/action-gh-release@v2
         with:
           draft: true
