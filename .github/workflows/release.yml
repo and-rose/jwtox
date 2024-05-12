@@ -28,12 +28,13 @@ jobs:
 
   release:
     needs: build
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
       - name: Create Release
-        id: create_release
+        id: create_releas[0-9]*.[0-9]*.[0-9]*e
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
