@@ -65,6 +65,14 @@ jobs:
           args: --release --locked --target=${{ matrix.target }} --color=always --verbose
           use-cross: ${{ runner.os == 'Linux' }}
 
+      - name: Package (*nix)
+        if: runner.os != 'Windows'
+        run: |
+          tar -cv \
+            -C target/${{ matrix.target }}/release/ zoxide |
+            gzip --best > \
+            jwtox-${{ steps.get_version.outputs.value }}-${{ matrix.target }}.tar.gz
+
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: |
