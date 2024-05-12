@@ -12,7 +12,7 @@ ARCH="$(uname -m)"
 # Convert Arch names to more common identifiers
 case "$ARCH" in
   x86_64) ARCH="x86_64" ;;
-  arm64) ARCH="arm" ;;
+  arm64) ARCH="aarch64" ;;
   aarch64) ARCH="aarch64" ;;
   *)
     echo "Unsupported architecture: $ARCH"
