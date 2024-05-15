@@ -6,8 +6,6 @@ use thiserror::Error;
 
 #[derive(Debug, PartialEq, Error)]
 pub enum Error {
-    #[error("No JWT provided")]
-    NoJwtProvided,
     #[error("JWT is malformed")]
     JwtMalformed,
     #[error("Invalid base64")]

@@ -10,7 +10,7 @@ const JWT_ICON: char = '✻';
 
 /// A simple JWT decoder
 /// Supports decoding the header, payload, and signature of a JWT token.
-/// Also supports verifying the signature using a secret key for HS256 & RS256 algorithms.
+/// Also supports verifying the signature for the HS256 & RS256 algorithms.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct JWTOXArgs {
@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
         // If in a TTY and no JWT string is provided, print help and return an error
         let mut cmd = JWTOXArgs::command();
         cmd.print_help()?;
-        return Err(Error::NoJwtProvided.into());
+        return Ok(());
     };
 
     // Then, parse the JWT string into a Jwt struct
