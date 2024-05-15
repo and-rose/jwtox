@@ -1,11 +1,13 @@
 [package]
 name = "jwtox"
-version = "1.0.1"
+version = "1.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.83"
+atty = "0.2.14"
 base64 = "0.22.1"
 chrono = "0.4.38"
 clap = { version = "4.4.11", features = ["derive"] }
@@ -14,4 +16,5 @@ hmac = "0.12.1"
 serde = { version = "1.0.201", features = ["derive"] }
 serde_json = "1.0.117"
 sha2 = "0.10.8"
+thiserror = "1.0.60"
 

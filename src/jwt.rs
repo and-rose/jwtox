@@ -3,20 +3,23 @@ use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::str::FromStr;
+use thiserror::Error;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Error)]
 pub enum Error {
-    /// The JWT token has too many or too few sections.
-    JWTMalformed,
-    /// The encoded bytes is not valid base64
+    #[error("No JWT provided")]
+    NoJwtProvided,
+    #[error("JWT is malformed")]
+    JwtMalformed,
+    #[error("Invalid base64")]
     InvalidBase64(base64::DecodeError),
-    /// The byte string is not valid utf-8, but it should be.
+    #[error("Invalid UTF-8")]
     InvalidUtf8(std::string::FromUtf8Error),
-    /// The header is not in a valid format.
+    #[error("Invalid header")]
     InvalidHeader,
-    /// An error occured while deserializing or serializing the payload.
+    #[error("Failed to serialize payload")]
     SerializePayload,
-    /// An error occured while parsing an integer.
+    #[error("Failed to parse int")]
     ParseInt(std::num::ParseIntError),
 }
 
@@ -71,7 +74,7 @@ impl FromStr for Jwt {
         let parts: Vec<&str> = s.split('.').collect();
 
         if parts.len() != 3 {
-            return Err(Error::JWTMalformed);
+            return Err(Error::JwtMalformed);
         }
 
         let (header, payload, signature) = (parts[0], parts[1], parts[2]);
