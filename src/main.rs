@@ -8,6 +8,9 @@ use std::io::BufRead;
 
 const JWT_ICON: char = '✻';
 
+/// A simple JWT decoder
+/// Supports decoding the header, payload, and signature of a JWT token.
+/// Also supports verifying the signature using a secret key for HS256 & RS256 algorithms.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct JWTOXArgs {
@@ -36,9 +39,9 @@ struct JWTOXArgs {
     #[clap(long = "utc", short = 'u')]
     utc: bool,
 
-    /// The secret to use for signature verification
-    #[clap(long = "secret", short = 's')]
-    secret: Option<String>,
+    /// The key to use for signature verification
+    #[clap(long = "key", short = 'k')]
+    key: Option<String>,
 }
 
 fn secs_str_to_date(secs: &str) -> Result<DateTime<chrono::Utc>, Error> {
@@ -77,11 +80,22 @@ fn print_claim_dates(jwt: &Jwt, utc: bool) -> Result<(), Error> {
     for &claim_name in &["exp", "iat", "nbf"] {
         if let Some(claim_value) = jwt.try_get_claim(claim_name) {
             let date = secs_str_to_date(&claim_value.to_string())?;
+            let claim_value = claim_value.to_string();
 
             if utc {
-                println!("{}: {}", claim_name, date);
+                println!(
+                    "   {}: {} {}",
+                    claim_name.yellow(),
+                    claim_value.yellow(),
+                    date
+                );
             } else {
-                println!("{}: {}", claim_name, date.with_timezone(&chrono::Local));
+                println!(
+                    "   {}: {} {}",
+                    claim_name.yellow(),
+                    claim_value.yellow(),
+                    date.with_timezone(&chrono::Local)
+                );
             }
         }
     }
@@ -141,8 +155,8 @@ fn main() -> anyhow::Result<()> {
         print_claim_dates(&jwt, args.utc)?;
     }
 
-    if let Some(secret) = args.secret {
-        let valid = jwt.verify_signature(&secret);
+    if let Some(key) = args.key {
+        let valid = jwt.verify_signature(&key);
         print_signature(&jwt.signature.encoded, Some(valid));
     } else {
         print_signature(&jwt.signature.encoded, None);

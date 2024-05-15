@@ -1,7 +1,6 @@
 use base64::prelude::*;
-use hmac::{Hmac, Mac};
+use ring::{hmac, signature};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -52,18 +51,28 @@ impl Jwt {
         self.payload.get(key)
     }
 
-    pub fn verify_signature(&self, secret: &str) -> bool {
+    pub fn verify_signature(&self, key: &str) -> bool {
         let mut parts = self.encoded.split('.');
         let header = parts.next().unwrap_or("");
         let payload = parts.next().unwrap_or("");
 
         let data = format!("{}.{}", header, payload);
-        let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
-        mac.update(data.as_bytes());
+        match self.header.alg {
+            Algorithm::HS256 => {
+                let v_key = hmac::Key::new(hmac::HMAC_SHA256, key.as_bytes());
+                hmac::verify(&v_key, data.as_bytes(), self.signature.signature.as_slice()).is_ok()
+            }
+            Algorithm::RS256 => {
+                let public_key = signature::UnparsedPublicKey::new(
+                    &signature::RSA_PKCS1_2048_8192_SHA256,
+                    key.as_bytes(),
+                );
 
-        let result = mac.finalize().into_bytes();
-
-        result.as_slice() == self.signature.signature.as_slice()
+                public_key
+                    .verify(data.as_bytes(), self.signature.signature.as_slice())
+                    .is_ok()
+            }
+        }
     }
 }
 
