@@ -32,6 +32,10 @@ struct JWTOXArgs {
     #[clap(long = "payload-only", short = 'p', conflicts_with = "header_only")]
     payload_only: bool,
 
+    /// Print dates in UTC instead of local time
+    #[clap(long = "utc", short = 'u')]
+    utc: bool,
+
     /// The secret to use for signature verification
     #[clap(long = "secret", short = 's')]
     secret: Option<String>,
@@ -41,12 +45,6 @@ fn secs_str_to_date(secs: &str) -> Result<DateTime<chrono::Utc>, Error> {
     let millis = secs.parse::<i64>().map_err(Error::ParseInt)?;
     let date = DateTime::from_timestamp(millis, 0).expect("Failed to parse int");
     Ok(date)
-}
-
-fn secs_str_to_date_local(secs: &str) -> Result<DateTime<chrono::Local>, Error> {
-    let millis = secs.parse::<i64>().map_err(Error::ParseInt)?;
-    let date = DateTime::from_timestamp(millis, 0).expect("Failed to parse int");
-    Ok(date.into())
 }
 
 #[inline]
@@ -75,18 +73,16 @@ fn print_signature(signature: &str, valid: Option<bool>) {
     println!("{}", signature.magenta());
 }
 
-fn print_claim_dates(jwt: &Jwt) -> Result<(), Error> {
+fn print_claim_dates(jwt: &Jwt, utc: bool) -> Result<(), Error> {
     for &claim_name in &["exp", "iat", "nbf"] {
         if let Some(claim_value) = jwt.try_get_claim(claim_name) {
-            let date_utc = secs_str_to_date(&claim_value.to_string())?;
-            let date_local = secs_str_to_date_local(&claim_value.to_string())?;
-            println!(
-                "   {}: {} {} {}",
-                claim_name.to_string().yellow(),
-                claim_value.to_string().yellow(),
-                date_utc,
-                date_local
-            );
+            let date = secs_str_to_date(&claim_value.to_string())?;
+
+            if utc {
+                println!("{}: {}", claim_name, date);
+            } else {
+                println!("{}: {}", claim_name, date.with_timezone(&chrono::Local));
+            }
         }
     }
     Ok(())
@@ -142,7 +138,7 @@ fn main() -> anyhow::Result<()> {
     print_payload(&jwt.payload);
 
     if !args.no_calc {
-        print_claim_dates(&jwt)?;
+        print_claim_dates(&jwt, args.utc)?;
     }
 
     if let Some(secret) = args.secret {
