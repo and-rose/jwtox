@@ -118,7 +118,7 @@ fn main() -> anyhow::Result<()> {
     let jwt_string = if let Some(jwt_string) = args.jwt_string {
         // Directly use the provided JWT string
         jwt_string
-    } else if atty::isnt(atty::Stream::Stdin) {
+    } else if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
         // Read from stdin if no JWT string is provided and not in a TTY
         read_from_stdin()
     } else {
