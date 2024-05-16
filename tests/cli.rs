@@ -4,6 +4,12 @@ use predicates::prelude::*;
 use serde::Serialize;
 use serde_json::json;
 
+fn secs_to_date(secs: i64) -> chrono::DateTime<chrono::Local> {
+    chrono::DateTime::from_timestamp(secs, 0)
+        .unwrap()
+        .with_timezone(&chrono::Local)
+}
+
 fn create_jwt<T: Serialize>(claims: T, algorithm: Algorithm, key: String) -> String {
     let header = Header::new(algorithm);
 
@@ -113,13 +119,12 @@ fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
-    let now = chrono::Local::now();
-    let now_seconds = now.timestamp();
+    let now = chrono::Local::now().timestamp();
     let claims = json!({
         "sub": "test",
-        "iat": now_seconds,
-        "exp": now_seconds + 3600,
-        "nbf": now_seconds,
+        "iat": now,
+        "exp": now + 3600,
+        "nbf": now,
     });
 
     let jwt = create_jwt(claims, Algorithm::HS256, "secret".into());
@@ -130,7 +135,7 @@ fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
         .arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains(now.to_rfc2822()).count(0));
+        .stdout(predicate::str::contains(secs_to_date(now).to_string()).count(0));
 
     Ok(())
 }
@@ -138,11 +143,6 @@ fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
     let now = chrono::Local::now().timestamp();
-    fn secs_to_date(secs: i64) -> chrono::DateTime<chrono::Local> {
-        chrono::DateTime::from_timestamp(secs, 0)
-            .unwrap()
-            .with_timezone(&chrono::Local)
-    }
 
     let claims = json!({
         "sub": "test",
