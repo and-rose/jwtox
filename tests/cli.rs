@@ -65,7 +65,9 @@ fn outputs_header_only() -> Result<(), Box<dyn std::error::Error>> {
         .arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"alg\": \"HS256\""));
+        .stdout(predicate::str::contains("\"alg\": \"HS256\""))
+        .stdout(predicate::str::contains("\"typ\": \"JWT\""))
+        .stdout(predicate::str::contains("\"sub\": \"test\"").count(0));
 
     Ok(())
 }
@@ -80,7 +82,9 @@ fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
         .arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"sub\": \"test\""));
+        .stdout(predicate::str::contains("\"sub\": \"test\""))
+        .stdout(predicate::str::contains("\"alg\": \"HS256\"").count(0))
+        .stdout(predicate::str::contains("\"typ\": \"JWT\"").count(0));
 
     Ok(())
 }
