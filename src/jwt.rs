@@ -61,6 +61,11 @@ impl Jwt {
                 hmac::verify(&v_key, data.as_bytes(), self.signature.signature.as_slice()).is_ok()
             }
             Algorithm::RS256 => {
+                // Put headers back on key
+                let key = format!(
+                    "-----BEGIN PRIVATE KEY-----\n {}\n-----END PRIVATE KEY -----",
+                    key
+                );
                 let public_key = signature::UnparsedPublicKey::new(
                     &signature::RSA_PKCS1_2048_8192_SHA256,
                     key.as_bytes(),

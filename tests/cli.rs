@@ -1,6 +1,8 @@
 use assert_cmd::Command;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use predicates::prelude::*;
+use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
+use rsa::RsaPrivateKey;
 use serde::Serialize;
 use serde_json::json;
 
@@ -10,10 +12,22 @@ fn secs_to_date(secs: i64) -> chrono::DateTime<chrono::Local> {
         .with_timezone(&chrono::Local)
 }
 
-fn create_jwt<T: Serialize>(claims: T, algorithm: Algorithm, key: String) -> String {
-    let header = Header::new(algorithm);
+fn create_hs256_jwt<T: Serialize>(claims: T, key: String) -> String {
+    let header = Header::new(Algorithm::HS256);
 
     encode(&header, &claims, &EncodingKey::from_secret(key.as_ref())).unwrap()
+}
+
+fn create_rs256_jwt<T: Serialize>(claims: T, key: &RsaPrivateKey) -> String {
+    let header = Header::new(Algorithm::RS256);
+    let pem = key.to_pkcs8_pem(rsa::pkcs8::LineEnding::default()).unwrap();
+
+    encode(
+        &header,
+        &claims,
+        &EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap(),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -30,7 +44,7 @@ fn jwt_is_malformed() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn decodes_jwt() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
     let mut cmd = Command::cargo_bin("jwtox")?;
 
     cmd.arg(jwt)
@@ -43,7 +57,7 @@ fn decodes_jwt() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn decodes_from_stdin() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -57,7 +71,7 @@ fn decodes_from_stdin() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn outputs_header_only() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -74,7 +88,7 @@ fn outputs_header_only() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -91,7 +105,7 @@ fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn verifies_valid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -107,7 +121,7 @@ fn verifies_valid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -117,6 +131,35 @@ fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Signature ✗"));
+
+    Ok(())
+}
+
+#[ignore]
+#[test]
+fn verifies_valid_rs256_signature() -> Result<(), Box<dyn std::error::Error>> {
+    let mut rng = rand::thread_rng();
+    let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let public_key = private_key
+        .to_public_key()
+        .to_public_key_pem(rsa::pkcs8::LineEnding::default())?;
+    // strip the header and footer
+    let public_key = public_key
+        .lines()
+        .skip(1)
+        .take_while(|line| !line.starts_with("-----"))
+        .collect::<Vec<_>>()
+        .join("");
+    let jwt = create_rs256_jwt(json!({"sub": "test"}), &private_key);
+
+    let mut cmd = Command::cargo_bin("jwtox")?;
+
+    cmd.arg("--key")
+        .arg(public_key)
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Signature ✓"));
 
     Ok(())
 }
@@ -131,7 +174,7 @@ fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_jwt(claims, Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(claims, "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -155,7 +198,7 @@ fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_jwt(claims, Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(claims, "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -197,7 +240,7 @@ fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_jwt(claims, Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(claims, "secret".into());
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
@@ -226,7 +269,7 @@ fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn decodes_jwt_with_no_color() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_jwt(json!({"sub": "test"}), Algorithm::HS256, "secret".into());
+    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
     let mut cmd = Command::cargo_bin("jwtox")?;
 
     cmd.arg("--no-color")
