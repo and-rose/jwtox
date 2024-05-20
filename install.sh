@@ -36,8 +36,12 @@ fi
 INSTALL_DIR="$HOME/.local/bin"
 BINARY_NAME="jwtox"
 DIR_NAME="jwtox"
+DOWNLOAD_PATH="/tmp/$DIR_NAME"
 TARBALL_NAME="jwtox-$RELEASE-$OS-$ARCH.tar.gz"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
+
+# Clean up anything with jwtox in the tmp directory
+rm -rf /tmp/jwtox*
 
 echo "Downloading $BINARY_NAME from $BINARY_URL"
 
@@ -52,16 +56,17 @@ fi
 echo "Download complete."
 
 # Extract the contents
-tar -xvzf "/tmp/$TARBALL_NAME" $DIR_NAME
+mkdir -p $DOWNLOAD_PATH
+tar -xvzf "/tmp/$TARBALL_NAME" -C $DOWNLOAD_PATH
 
 # Expect a directory with the binary and completion files
 # Should be jwtox/jwtox and jwtox/contrib/completion
 
 # Give execute permissions
-chmod +x $DIR_NAME/$BINARY_NAME
+chmod +x "$DOWNLOAD_PATH/$BINARY_NAME"
 
 # Move the binary to the install directory
-mv $BINARY_NAME $INSTALL_DIR
+mv "$DOWNLOAD_PATH/$BINARY_NAME" "$BINARY_PATH"
 
 if [ $? -ne 0 ]; then
   echo "Failed to move the binary to $INSTALL_DIR."
@@ -75,18 +80,18 @@ echo "$BINARY_NAME installed successfully to $INSTALL_DIR."
 
 # Fish
 if [ -d "$HOME/.config/fish/completions" ]; then
-  cp $DIR_NAME/contrib/completion/jwtox.fish $HOME/.config/fish/completions
+  cp $DOWNLOAD_PATH/completions/jwtox.fish $HOME/.config/fish/completions
   echo "Fish completions installed successfully."
 fi
 
 # Bash
 if [ -d "$HOME/share/bash-completion/completions" ]; then
-  cp $DIR_NAME/contrib/completion/jwtox.bash $HOME/.bash_completion.d
+  cp $DOWNLOAD_PATH/completions/jwtox.bash $HOME/.bash_completion.d
   echo "Bash completions installed successfully."
 fi
 
 # Zsh
 if [ -d "$HOME/.zsh/completions" ]; then
-  cp $DIR_NAME/contrib/completion/_jwtox $HOME/.zsh/completions
+  cp $DOWNLOAD_PATH/completions/_jwtox $HOME/.zsh/completions
   echo "Zsh completions installed successfully."
 fi
