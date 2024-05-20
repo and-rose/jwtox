@@ -1,0 +1,48 @@
+#compdef jwtox
+
+autoload -U is-at-least
+
+_jwtox() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" \
+'-k+[The key to use for signature verification]:KEY: ' \
+'--key=[The key to use for signature verification]:KEY: ' \
+'-c[Do not calculate the dates for iat, exp, and nbf]' \
+'--no-calc[Do not calculate the dates for iat, exp, and nbf]' \
+'-n[No color output]' \
+'--no-color[No color output]' \
+'(-p --payload-only)-H[Only print the header as JSON]' \
+'(-p --payload-only)--header-only[Only print the header as JSON]' \
+'(-H --header-only)-p[Only print the payload as JSON]' \
+'(-H --header-only)--payload-only[Only print the payload as JSON]' \
+'-u[Print dates in UTC instead of local time]' \
+'--utc[Print dates in UTC instead of local time]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+'::JWT -- The JWT token to decode. If not provided, it will be read from stdin:' \
+&& ret=0
+}
+
+(( $+functions[_jwtox_commands] )) ||
+_jwtox_commands() {
+    local commands; commands=()
+    _describe -t commands 'jwtox commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_jwtox" ]; then
+    _jwtox "$@"
+else
+    compdef _jwtox jwtox
+fi

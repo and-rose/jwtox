@@ -1,3 +1,4 @@
+mod cli;
 mod jwt;
 
 use chrono::DateTime;
@@ -6,43 +7,9 @@ use colored::Colorize;
 use jwt::{Error, Header, Jwt};
 use std::io::BufRead;
 
+use cli::JWTOXArgs;
+
 const JWT_ICON: char = '✻';
-
-/// A simple JWT decoder
-/// Supports decoding the header, payload, and signature of a JWT token.
-/// Also supports verifying the signature for the HS256 algorithm.
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct JWTOXArgs {
-    /// The JWT token to decode.
-    /// If not provided, it will be read from stdin.
-    #[clap(name = "JWT")]
-    jwt_string: Option<String>,
-
-    /// Do not calculate the dates for iat, exp, and nbf
-    #[clap(long = "no-calc", short = 'c')]
-    no_calc: bool,
-
-    /// No color output
-    #[clap(long = "no-color", short = 'n')]
-    no_color: bool,
-
-    /// Only print the header as JSON
-    #[clap(long = "header-only", short = 'H', conflicts_with = "payload_only")]
-    header_only: bool,
-
-    /// Only print the payload as JSON
-    #[clap(long = "payload-only", short = 'p', conflicts_with = "header_only")]
-    payload_only: bool,
-
-    /// Print dates in UTC instead of local time
-    #[clap(long = "utc", short = 'u')]
-    utc: bool,
-
-    /// The key to use for signature verification
-    #[clap(long = "key", short = 'k')]
-    key: Option<String>,
-}
 
 fn secs_str_to_date(secs: &str) -> Result<DateTime<chrono::Utc>, Error> {
     let millis = secs.parse::<i64>().map_err(Error::ParseInt)?;
