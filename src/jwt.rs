@@ -1,5 +1,5 @@
 use base64::prelude::*;
-use ring::{hmac, signature};
+use ring::hmac;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
@@ -18,18 +18,20 @@ pub enum Error {
     SerializePayload,
     #[error("Failed to parse int")]
     ParseInt(std::num::ParseIntError),
+    #[error("Algorithm not supported")]
+    AlgorithmNotSupported,
 }
 
-#[derive(Deserialize, Serialize)]
-enum Algorithm {
+#[derive(Deserialize, Serialize, PartialEq)]
+pub enum Algorithm {
     HS256,
     RS256,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Header {
-    alg: Algorithm,
-    typ: String,
+    pub alg: Algorithm,
+    pub typ: String,
 }
 
 pub struct Signature {
@@ -60,21 +62,7 @@ impl Jwt {
                 let v_key = hmac::Key::new(hmac::HMAC_SHA256, key.as_bytes());
                 hmac::verify(&v_key, data.as_bytes(), self.signature.signature.as_slice()).is_ok()
             }
-            Algorithm::RS256 => {
-                // Put headers back on key
-                let key = format!(
-                    "-----BEGIN PRIVATE KEY-----\n {}\n-----END PRIVATE KEY -----",
-                    key
-                );
-                let public_key = signature::UnparsedPublicKey::new(
-                    &signature::RSA_PKCS1_2048_8192_SHA256,
-                    key.as_bytes(),
-                );
-
-                public_key
-                    .verify(data.as_bytes(), self.signature.signature.as_slice())
-                    .is_ok()
-            }
+            _ => false,
         }
     }
 }

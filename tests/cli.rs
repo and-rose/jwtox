@@ -1,7 +1,7 @@
 use assert_cmd::Command;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use predicates::prelude::*;
-use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
+use rsa::pkcs8::EncodePrivateKey;
 use rsa::RsaPrivateKey;
 use serde::Serialize;
 use serde_json::json;
@@ -135,31 +135,19 @@ fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[ignore]
 #[test]
-fn verifies_valid_rs256_signature() -> Result<(), Box<dyn std::error::Error>> {
-    let mut rng = rand::thread_rng();
-    let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
-    let public_key = private_key
-        .to_public_key()
-        .to_public_key_pem(rsa::pkcs8::LineEnding::default())?;
-    // strip the header and footer
-    let public_key = public_key
-        .lines()
-        .skip(1)
-        .take_while(|line| !line.starts_with("-----"))
-        .collect::<Vec<_>>()
-        .join("");
+fn refuses_validate_rs256_signature() -> Result<(), Box<dyn std::error::Error>> {
+    let private_key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).unwrap();
     let jwt = create_rs256_jwt(json!({"sub": "test"}), &private_key);
 
     let mut cmd = Command::cargo_bin("jwtox")?;
 
     cmd.arg("--key")
-        .arg(public_key)
+        .arg("some_key")
         .arg(jwt)
         .assert()
-        .success()
-        .stdout(predicate::str::contains("Signature ✓"));
+        .failure()
+        .stderr(predicate::str::contains("Algorithm not supported"));
 
     Ok(())
 }

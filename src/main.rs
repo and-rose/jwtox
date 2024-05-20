@@ -10,7 +10,7 @@ const JWT_ICON: char = '✻';
 
 /// A simple JWT decoder
 /// Supports decoding the header, payload, and signature of a JWT token.
-/// Also supports verifying the signature for the HS256 & RS256 algorithms.
+/// Also supports verifying the signature for the HS256 algorithm.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct JWTOXArgs {
@@ -156,6 +156,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     if let Some(key) = args.key {
+        // Check if the algorithm is HS256 and verify the signature
+        if jwt.header.alg != jwt::Algorithm::HS256 {
+            Err(Error::AlgorithmNotSupported)?;
+        }
         let valid = jwt.verify_signature(&key);
         print_signature(&jwt.signature.encoded, Some(valid));
     } else {
