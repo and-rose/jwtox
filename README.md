@@ -2,6 +2,8 @@
 
 ## Description
 
+A CLI tool for JSON Web Token decoding.
+
 ## Installation
 
 ```bash
