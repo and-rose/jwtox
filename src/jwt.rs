@@ -27,7 +27,7 @@ pub enum Error {
     ParseInt(std::num::ParseIntError),
     #[error("Algorithm not supported")]
     AlgorithmNotSupported,
-    #[error("iss claim is missing or not a url")]
+    #[error("iss claim is missing or not a URL")]
     IssClaimMissingOrNotUrl,
     #[error("kid header is missing")]
     KidHeaderMissing,

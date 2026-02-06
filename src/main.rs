@@ -70,6 +70,23 @@ fn print_claim_dates(jwt: &Jwt, utc: bool) -> Result<(), Error> {
             }
         }
     }
+
+    // log if token is expired
+    if let Some(claim_value) = jwt.try_get_claim("exp") {
+        let date = secs_str_to_date(&claim_value.to_string())?;
+        let now = chrono::Utc::now();
+        if date < now {
+            match utc {
+                true => {
+                    println!("   {}", "⚠️ Token Expired".yellow());
+                }
+                false => {
+                    println!("   {}", "⚠️ Token Expired".yellow(),);
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -151,7 +168,13 @@ async fn main() -> anyhow::Result<()> {
             .expect("Failed to join URL");
         let client = Client::new();
 
-        let jwks_response = client.get(jwks_url).send().await?.json::<Jwks>().await?;
+        let jwks_response = client
+            .get(jwks_url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Jwks>()
+            .await?;
 
         // Find the key in the JWKs that matches the "kid" header
         let jwk = jwks_response
