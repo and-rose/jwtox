@@ -23,7 +23,7 @@ _jwtox() {
 
     case "${cmd}" in
         jwtox)
-            opts="-c -n -H -p -u -k -h -V --no-calc --no-color --header-only --payload-only --utc --key --help --version [JWT]"
+            opts="-c -n -H -p -u -k -v -h -V --no-calc --no-color --header-only --payload-only --utc --key --verify-jwks --help --version [JWT]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

@@ -30,6 +30,8 @@ set edit:completion:arg-completer[jwtox] = {|@words|
             cand --payload-only 'Only print the payload as JSON'
             cand -u 'Print dates in UTC instead of local time'
             cand --utc 'Print dates in UTC instead of local time'
+            cand -v 'Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint'
+            cand --verify-jwks 'Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint'
             cand -h 'Print help'
             cand --help 'Print help'
             cand -V 'Print version'

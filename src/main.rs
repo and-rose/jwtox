@@ -1,13 +1,17 @@
 mod cli;
+mod jwks;
 mod jwt;
 
 use chrono::DateTime;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use jwt::{Error, Header, Jwt};
+use reqwest::Client;
 use std::io::BufRead;
+use url::Url;
 
 use cli::JWTOXArgs;
+use jwks::Jwks;
 
 const JWT_ICON: char = '✻';
 
@@ -79,7 +83,8 @@ fn read_from_stdin() -> String {
     buffer
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let args = JWTOXArgs::parse();
 
     let jwt_string = if let Some(jwt_string) = args.jwt_string {
@@ -129,6 +134,39 @@ fn main() -> anyhow::Result<()> {
         }
         let valid = jwt.verify_signature(&key);
         print_signature(&jwt.signature.encoded, Some(valid));
+    } else if args.jwks {
+        // check if the "iss" claim is present and is a string
+        let iss = jwt
+            .try_get_claim("iss")
+            .and_then(|claim| claim.as_str())
+            .and_then(|iss| Url::parse(iss).ok())
+            .ok_or(Error::IssClaimMissingOrNotUrl)?;
+
+        let kid = jwt.header.kid.as_ref().ok_or(Error::KidHeaderMissing)?;
+        let alg = &jwt.header.alg;
+
+        // Reach out to the authority specified in the "iss" claim using the JWKs endpoint
+        let jwks_url = iss
+            .join(".well-known/jwks.json")
+            .expect("Failed to join URL");
+        let client = Client::new();
+
+        let jwks_response = client.get(jwks_url).send().await?.json::<Jwks>().await?;
+
+        // Find the key in the JWKs that matches the "kid" header
+        let jwk = jwks_response
+            .keys
+            .into_iter()
+            .find(|jwk| jwk.kid.as_ref() == Some(kid))
+            .ok_or(Error::KidNotFound)?;
+
+        if jwk.alg.as_ref() != Some(alg) {
+            Err(Error::AlgorithmNotSupported)?;
+        }
+
+        let verified = jwt.verify_signature_with_jwk(jwk);
+
+        print_signature(&jwt.signature.encoded, Some(verified));
     } else {
         print_signature(&jwt.signature.encoded, None);
     }

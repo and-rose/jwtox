@@ -1,9 +1,15 @@
 use base64::prelude::*;
 use hmac::{Hmac, Mac};
+use rsa::pkcs1v15::Signature as RsaSignature;
+use rsa::pkcs1v15::VerifyingKey;
+use rsa::signature::Verifier;
+use rsa::{BigUint, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::str::FromStr;
 use thiserror::Error;
+
+use crate::jwks::{Jwk, KeyParameters};
 
 #[derive(Debug, PartialEq, Error)]
 pub enum Error {
@@ -21,9 +27,15 @@ pub enum Error {
     ParseInt(std::num::ParseIntError),
     #[error("Algorithm not supported")]
     AlgorithmNotSupported,
+    #[error("iss claim is missing or not a url")]
+    IssClaimMissingOrNotUrl,
+    #[error("kid header is missing")]
+    KidHeaderMissing,
+    #[error("Unable to match key with kid")]
+    KidNotFound,
 }
 
-#[derive(Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub enum Algorithm {
     HS256,
     RS256,
@@ -33,6 +45,8 @@ pub enum Algorithm {
 pub struct Header {
     pub alg: Algorithm,
     pub typ: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kid: Option<String>,
 }
 
 pub struct Signature {
@@ -69,6 +83,44 @@ impl Jwt {
 
                 mac.update(data.as_bytes());
                 mac.verify_slice(&self.signature.signature).is_ok()
+            }
+            _ => false,
+        }
+    }
+
+    pub fn verify_signature_with_jwk(&self, jwk: Jwk) -> bool {
+        match self.header.alg {
+            Algorithm::RS256 => {
+                if let Jwk {
+                    params: KeyParameters::Rsa { n, e, .. },
+                    ..
+                } = jwk
+                {
+                    let n_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(n.as_bytes())
+                        .expect("Failed to decode n");
+                    let e_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(e.as_bytes())
+                        .expect("Failed to decode e");
+
+                    let public_key = RsaPublicKey::new(
+                        BigUint::from_bytes_be(&n_decoded),
+                        BigUint::from_bytes_be(&e_decoded),
+                    )
+                    .expect("Failed to create RSA public key");
+
+                    let parts = self.encoded.splitn(3, '.');
+                    let signing_input = parts.take(2).collect::<Vec<&str>>().join(".");
+
+                    let sig = RsaSignature::try_from(self.signature.signature.as_slice());
+                    let Ok(sig) = sig else { return false };
+
+                    VerifyingKey::<Sha256>::new(public_key)
+                        .verify(signing_input.as_bytes(), &sig)
+                        .is_ok()
+                } else {
+                    false
+                }
             }
             _ => false,
         }

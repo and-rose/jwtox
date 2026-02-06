@@ -33,4 +33,8 @@ pub struct JWTOXArgs {
     /// The key to use for signature verification
     #[clap(long = "key", short = 'k')]
     pub key: Option<String>,
+
+    /// Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint
+    #[clap(long = "verify-jwks", short = 'v', conflicts_with = "key")]
+    pub jwks: bool,
 }

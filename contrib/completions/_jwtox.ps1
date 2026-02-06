@@ -33,6 +33,8 @@ Register-ArgumentCompleter -Native -CommandName 'jwtox' -ScriptBlock {
             [CompletionResult]::new('--payload-only', '--payload-only', [CompletionResultType]::ParameterName, 'Only print the payload as JSON')
             [CompletionResult]::new('-u', '-u', [CompletionResultType]::ParameterName, 'Print dates in UTC instead of local time')
             [CompletionResult]::new('--utc', '--utc', [CompletionResultType]::ParameterName, 'Print dates in UTC instead of local time')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint')
+            [CompletionResult]::new('--verify-jwks', '--verify-jwks', [CompletionResultType]::ParameterName, 'Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
