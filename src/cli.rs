@@ -1,4 +1,4 @@
-use clap::{command, Parser};
+use clap::Parser;
 /// A simple JWT decoder
 /// Supports decoding the header, payload, and signature of a JWT token.
 /// Also supports verifying the signature for the HS256 algorithm.

@@ -14,9 +14,9 @@ _jwtox() {
     fi
 
     local context curcontext="$curcontext" state line
-    _arguments "${_arguments_options[@]}" \
-'-k+[The key to use for signature verification]:KEY: ' \
-'--key=[The key to use for signature verification]:KEY: ' \
+    _arguments "${_arguments_options[@]}" : \
+'-k+[The key to use for signature verification]:KEY:_default' \
+'--key=[The key to use for signature verification]:KEY:_default' \
 '-c[Do not calculate the dates for iat, exp, and nbf]' \
 '--no-calc[Do not calculate the dates for iat, exp, and nbf]' \
 '-n[No color output]' \
@@ -31,7 +31,7 @@ _jwtox() {
 '--help[Print help]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'::JWT -- The JWT token to decode. If not provided, it will be read from stdin:' \
+'::JWT -- The JWT token to decode. If not provided, it will be read from stdin:_default' \
 && ret=0
 }
 

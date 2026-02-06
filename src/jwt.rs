@@ -1,6 +1,7 @@
 use base64::prelude::*;
-use ring::hmac;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -46,6 +47,8 @@ pub struct Jwt {
     pub signature: Signature,
 }
 
+type HmacSha256 = Hmac<Sha256>;
+
 impl Jwt {
     pub fn try_get_claim(&self, key: &str) -> Option<&serde_json::Value> {
         self.payload.get(key)
@@ -59,8 +62,13 @@ impl Jwt {
         let data = format!("{}.{}", header, payload);
         match self.header.alg {
             Algorithm::HS256 => {
-                let v_key = hmac::Key::new(hmac::HMAC_SHA256, key.as_bytes());
-                hmac::verify(&v_key, data.as_bytes(), self.signature.signature.as_slice()).is_ok()
+                let mut mac = HmacSha256::new_from_slice(key.as_bytes())
+                    .expect("HMAC can take key of any size");
+                // let v_key = hmac::Key::new(hmac::HMAC_SHA256, key.as_bytes());
+                // hmac::verify(&v_key, data.as_bytes(), self.signature.signature.as_slice()).is_ok()
+
+                mac.update(data.as_bytes());
+                mac.verify_slice(&self.signature.signature).is_ok()
             }
             _ => false,
         }
