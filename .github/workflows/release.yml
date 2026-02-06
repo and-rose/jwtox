@@ -83,7 +83,18 @@ jobs:
 
       - name: Build binary
         shell: bash
+        if: runner.os == 'Linux'
         run: cross build --release --locked --target=${{ matrix.target }} --color=always --verbose
+
+      - name: Build binary (macOS)
+        shell: bash
+        if: runner.os == 'macOS'
+        run: cargo build --release --locked --target=${{ matrix.target }} --color=always --verbose
+
+      - name: Build binary (Windows)
+        shell: pwsh
+        if: runner.os == 'Windows'
+        run: cargo build --release --locked --target=${{ matrix.target }} --color=always --verbose
 
       - name: Package (*nix)
         if: runner.os != 'Windows'
