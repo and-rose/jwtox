@@ -19,7 +19,7 @@ set edit:completion:arg-completer[jwtox] = {|@words|
     var completions = [
         &'jwtox'= {
             cand -k 'The key to use for signature verification'
-            cand --key 'The key to use for signature verification'
+            cand --key-file 'The key to use for signature verification'
             cand -c 'Do not calculate the dates for iat, exp, and nbf'
             cand --no-calc 'Do not calculate the dates for iat, exp, and nbf'
             cand -n 'No color output'

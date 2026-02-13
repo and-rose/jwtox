@@ -22,7 +22,7 @@ Register-ArgumentCompleter -Native -CommandName 'jwtox' -ScriptBlock {
     $completions = @(switch ($command) {
         'jwtox' {
             [CompletionResult]::new('-k', '-k', [CompletionResultType]::ParameterName, 'The key to use for signature verification')
-            [CompletionResult]::new('--key', '--key', [CompletionResultType]::ParameterName, 'The key to use for signature verification')
+            [CompletionResult]::new('--key-file', '--key-file', [CompletionResultType]::ParameterName, 'The key to use for signature verification')
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Do not calculate the dates for iat, exp, and nbf')
             [CompletionResult]::new('--no-calc', '--no-calc', [CompletionResultType]::ParameterName, 'Do not calculate the dates for iat, exp, and nbf')
             [CompletionResult]::new('-n', '-n', [CompletionResultType]::ParameterName, 'No color output')

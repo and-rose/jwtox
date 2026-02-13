@@ -1,4 +1,5 @@
 use assert_cmd::cargo;
+use assert_fs::prelude::*;
 use base64::prelude::*;
 use httpmock::prelude::*;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
@@ -10,11 +11,22 @@ use rsa::traits::PublicKeyParts;
 use serde::Serialize;
 use serde_json::json;
 use std::sync::OnceLock;
+use time::{OffsetDateTime, UtcOffset};
 
-fn secs_to_date(secs: i64) -> chrono::DateTime<chrono::Local> {
-    chrono::DateTime::from_timestamp(secs, 0)
+fn local_offset() -> UtcOffset {
+    UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
+}
+
+fn secs_to_local_date(secs: i64) -> OffsetDateTime {
+    OffsetDateTime::from_unix_timestamp(secs)
         .unwrap()
-        .with_timezone(&chrono::Local)
+        .to_offset(local_offset())
+}
+
+fn secs_to_utc_date(secs: i64) -> OffsetDateTime {
+    OffsetDateTime::from_unix_timestamp(secs)
+        .unwrap()
+        .to_offset(UtcOffset::UTC)
 }
 
 fn create_hs256_jwt<T: Serialize>(claims: T, key: String) -> String {
@@ -131,11 +143,13 @@ fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn verifies_valid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
     let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let file = assert_fs::NamedTempFile::new("keyfile.txt")?;
+    file.write_str("secret")?;
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
-    cmd.arg("--key")
-        .arg("secret")
+    cmd.arg("--key-file")
+        .arg(file.path())
         .arg(jwt)
         .assert()
         .success()
@@ -148,10 +162,13 @@ fn verifies_valid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
 fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
     let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
 
+    let file = assert_fs::NamedTempFile::new("keyfile.txt")?;
+    file.write_str("wrong_secret")?;
+
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
-    cmd.arg("--key")
-        .arg("wrong_secret")
+    cmd.arg("--key-file")
+        .arg(file.path())
         .arg(jwt)
         .assert()
         .success()
@@ -165,10 +182,13 @@ fn refuses_validate_rs256_signature() -> Result<(), Box<dyn std::error::Error>> 
     let private_key = RsaPrivateKey::new(&mut OsRng, 2048).expect("Failed to generate RSA key");
     let jwt = create_rs256_jwt(json!({"sub": "test"}), &private_key);
 
+    let file = assert_fs::NamedTempFile::new("keyfile.txt")?;
+    file.write_str("some_key")?;
+
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
-    cmd.arg("--key")
-        .arg("some_key")
+    cmd.arg("--key-file")
+        .arg(file.path())
         .arg(jwt)
         .assert()
         .failure()
@@ -179,7 +199,8 @@ fn refuses_validate_rs256_signature() -> Result<(), Box<dyn std::error::Error>> 
 
 #[test]
 fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
-    let now = chrono::Local::now().timestamp();
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+
     let claims = json!({
         "sub": "test",
         "iat": now,
@@ -188,21 +209,20 @@ fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let jwt = create_hs256_jwt(claims, "secret".into());
-
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg("--no-calc")
         .arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains(secs_to_date(now).to_string()).count(0));
+        .stdout(predicate::str::contains(secs_to_local_date(now).to_string()).count(0));
 
     Ok(())
 }
 
 #[test]
 fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
-    let now = chrono::Local::now().timestamp();
+    let now = OffsetDateTime::now_utc().unix_timestamp();
 
     let claims = json!({
         "sub": "test",
@@ -212,7 +232,6 @@ fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let jwt = create_hs256_jwt(claims, "secret".into());
-
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg(jwt)
@@ -221,17 +240,17 @@ fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(format!(
             "iat: {} {}",
             now,
-            secs_to_date(now)
+            secs_to_local_date(now)
         )))
         .stdout(predicate::str::contains(format!(
             "exp: {} {}",
             now + 3600,
-            secs_to_date(now + 3600)
+            secs_to_local_date(now + 3600)
         )))
         .stdout(predicate::str::contains(format!(
             "nbf: {} {}",
             now,
-            secs_to_date(now)
+            secs_to_local_date(now)
         )));
 
     Ok(())
@@ -239,12 +258,7 @@ fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
-    let now = chrono::Local::now().timestamp();
-    fn secs_to_date(secs: i64) -> chrono::DateTime<chrono::Utc> {
-        chrono::DateTime::from_timestamp(secs, 0)
-            .unwrap()
-            .with_timezone(&chrono::Utc)
-    }
+    let now = OffsetDateTime::now_utc().unix_timestamp();
 
     let claims = json!({
         "sub": "test",
@@ -254,7 +268,6 @@ fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let jwt = create_hs256_jwt(claims, "secret".into());
-
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg("--utc")
@@ -264,17 +277,17 @@ fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains(format!(
             "iat: {} {}",
             now,
-            secs_to_date(now)
+            secs_to_utc_date(now)
         )))
         .stdout(predicate::str::contains(format!(
             "exp: {} {}",
             now + 3600,
-            secs_to_date(now + 3600)
+            secs_to_utc_date(now + 3600)
         )))
         .stdout(predicate::str::contains(format!(
             "nbf: {} {}",
             now,
-            secs_to_date(now)
+            secs_to_utc_date(now)
         )));
 
     Ok(())
@@ -308,7 +321,7 @@ fn prints_help_with_help_flag() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn alerts_when_token_is_expired() -> Result<(), Box<dyn std::error::Error>> {
-    let now = chrono::Local::now().timestamp();
+    let now = OffsetDateTime::now_utc().unix_timestamp();
 
     let claims = json!({
         "sub": "test",
@@ -318,20 +331,19 @@ fn alerts_when_token_is_expired() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let jwt = create_hs256_jwt(claims, "secret".into());
-
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains("⚠️ Token Expired"));
+        .stdout(predicate::str::contains("ÔÜá´©Å Token Expired"));
 
     Ok(())
 }
 
 #[test]
 fn does_not_alert_when_token_is_not_expired() -> Result<(), Box<dyn std::error::Error>> {
-    let now = chrono::Local::now().timestamp();
+    let now = OffsetDateTime::now_utc().unix_timestamp();
 
     let claims = json!({
         "sub": "test",
@@ -341,13 +353,12 @@ fn does_not_alert_when_token_is_not_expired() -> Result<(), Box<dyn std::error::
     });
 
     let jwt = create_hs256_jwt(claims, "secret".into());
-
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains("⚠️ Token Expired").count(0));
+        .stdout(predicate::str::contains("ÔÜá´©Å Token Expired").count(0));
 
     Ok(())
 }

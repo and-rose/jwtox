@@ -3,6 +3,7 @@ mod jwks;
 mod jwt;
 
 use chrono::DateTime;
+use chrono_humanize::HumanTime;
 use clap::{CommandFactory, Parser};
 use colored::Colorize;
 use jwt::{Error, Header, Jwt};
@@ -75,15 +76,19 @@ fn print_claim_dates(jwt: &Jwt, utc: bool) -> Result<(), Error> {
     if let Some(claim_value) = jwt.try_get_claim("exp") {
         let date = secs_str_to_date(&claim_value.to_string())?;
         let now = chrono::Utc::now();
-        if date < now {
-            match utc {
-                true => {
-                    println!("   {}", "⚠️ Token Expired".yellow());
-                }
-                false => {
-                    println!("   {}", "⚠️ Token Expired".yellow(),);
-                }
-            }
+        let duration = date - now;
+        if duration.num_seconds() < 0 {
+            println!(
+                "   {} {}",
+                "⚠️ Token expired".yellow(),
+                HumanTime::from(duration).to_string().yellow()
+            );
+        } else {
+            println!(
+                "   {} {}",
+                "Token expires".yellow(),
+                HumanTime::from(duration).to_string().yellow()
+            );
         }
     }
 
@@ -144,11 +149,14 @@ async fn main() -> anyhow::Result<()> {
         print_claim_dates(&jwt, args.utc)?;
     }
 
-    if let Some(key) = args.key {
+    if let Some(key_file) = args.key_file {
         // Check if the algorithm is HS256 and verify the signature
         if jwt.header.alg != jwt::Algorithm::HS256 {
             Err(Error::AlgorithmNotSupported)?;
         }
+
+        let key = std::fs::read_to_string(key_file)?;
+
         let valid = jwt.verify_signature(&key);
         print_signature(&jwt.signature.encoded, Some(valid));
     } else if args.jwks {
