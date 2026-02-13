@@ -67,6 +67,11 @@ chmod +x "$DOWNLOAD_PATH/$BINARY_NAME"
 # Move the binary to the install directory
 echo "Moving $BINARY_NAME to $INSTALL_DIR"
 
+if [ ! -d "$INSTALL_DIR" ]; then
+  echo "Creating install directory at $INSTALL_DIR"
+  mkdir -p "$INSTALL_DIR"
+fi
+
 if ! mv "$DOWNLOAD_PATH/$BINARY_NAME" "$BINARY_PATH"; then
   echo "Failed to move the binary to $INSTALL_DIR."
   exit 1
