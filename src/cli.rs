@@ -37,4 +37,10 @@ pub struct JWTOXArgs {
     /// Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint
     #[clap(long = "verify-jwks", short = 'v', conflicts_with = "key_file")]
     pub jwks: bool,
+
+    #[clap(long = "no-cache", short = 'C', conflicts_with = "clear_cache")]
+    pub no_cache: bool,
+
+    #[clap(long = "clear-cache", short = 'X', conflicts_with = "no_cache")]
+    pub clear_cache: bool,
 }

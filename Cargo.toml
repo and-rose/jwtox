@@ -14,7 +14,9 @@ chrono = "0.4.43"
 chrono-humanize = "0.2.3"
 clap = { version = "4.5.57", features = ["derive"] }
 colored = "3.1.1"
+dirs = "6.0.0"
 hmac = "0.12.1"
+md5 = "0.8.0"
 reqwest = { version = "0.13.1", features = ["json"] }
 rsa = "0.9.10"
 serde = { version = "1.0.228", features = ["derive"] }

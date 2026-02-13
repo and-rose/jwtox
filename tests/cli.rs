@@ -532,3 +532,61 @@ async fn fails_verification_with_jwks_when_iss_missing() -> Result<(), Box<dyn s
 
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn stores_http_response_in_cache() -> Result<(), Box<dyn std::error::Error>> {
+    let server = MockServer::start_async().await;
+
+    let jwks_mock = server.mock(|when, then| {
+        when.method(GET).path("/.well-known/jwks.json");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "keys": [
+                        {
+                            "kty": "RSA",
+                            "kid": "test-key",
+                            "use": "sig",
+                            "alg": "RS256",
+                            "n": BASE64_URL_SAFE_NO_PAD.encode(get_static_private_key().n().to_bytes_be()),
+                            "e": BASE64_URL_SAFE_NO_PAD.encode(get_static_private_key().e().to_bytes_be())
+                        }
+                    ]
+                })
+                .to_string(),
+            );
+    });
+
+    let jwt = create_rs256_jwt_with_kid(
+        json!({
+            "sub": "test",
+            "iss": server.url("/"),
+        }),
+        get_static_private_key(),
+        "test-key",
+    );
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--verify-jwks")
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Signature ✓"));
+
+    // Assert that the JWKS endpoint was called
+    jwks_mock.assert_async().await;
+
+    // Assert that the cache file was created
+    let cache_dir = dirs::cache_dir().unwrap().join("jwtox");
+    let cache_key = format!(
+        "{:x}",
+        md5::compute(server.url("/.well-known/jwks.json").as_str())
+    );
+    let cache_file = cache_dir.join(format!("{}.json", cache_key));
+
+    assert!(cache_file.exists());
+
+    Ok(())
+}

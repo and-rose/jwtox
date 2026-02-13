@@ -1,4 +1,5 @@
 mod cli;
+mod http_cache;
 mod jwks;
 mod jwt;
 
@@ -12,6 +13,7 @@ use std::io::BufRead;
 use url::Url;
 
 use cli::JWTOXArgs;
+use http_cache::HttpCache;
 use jwks::Jwks;
 
 const JWT_ICON: char = '✻';
@@ -109,6 +111,18 @@ fn read_from_stdin() -> String {
 async fn main() -> anyhow::Result<()> {
     let args = JWTOXArgs::parse();
 
+    let cache = HttpCache::new("jwtox", 3600)?;
+
+    // Clear cache first if requested
+    if args.clear_cache {
+        cache.clear_all()?;
+        println!("All cached responses cleared.");
+        // If only clearing cache (no JWT provided, we're done
+        if args.jwt_string.is_none() && std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+            return Ok(());
+        }
+    }
+
     let jwt_string = if let Some(jwt_string) = args.jwt_string {
         // Directly use the provided JWT string
         jwt_string
@@ -176,13 +190,17 @@ async fn main() -> anyhow::Result<()> {
             .expect("Failed to join URL");
         let client = Client::new();
 
-        let jwks_response = client
-            .get(jwks_url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json::<Jwks>()
-            .await?;
+        let jwks_response = if args.no_cache {
+            client
+                .get(jwks_url)
+                .send()
+                .await?
+                .error_for_status()?
+                .json::<Jwks>()
+                .await?
+        } else {
+            cache.get_or_fetch(&client, &jwks_url).await?
+        };
 
         // Find the key in the JWKs that matches the "kid" header
         let jwk = jwks_response
