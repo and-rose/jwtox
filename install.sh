@@ -46,9 +46,7 @@ rm -rf /tmp/jwtox*
 echo "Downloading $BINARY_NAME from $BINARY_URL"
 
 # Download the binary
-curl -sSL -o "/tmp/$TARBALL_NAME" "$BINARY_URL"
-
-if [ $? -ne 0 ]; then
+if curl -sSL -o "/tmp/$TARBALL_NAME" "$BINARY_URL"; then
   echo "Download failed!"
   exit 1
 fi
@@ -68,9 +66,8 @@ chmod +x "$DOWNLOAD_PATH/$BINARY_NAME"
 
 # Move the binary to the install directory
 echo "Moving $BINARY_NAME to $INSTALL_DIR"
-mv "$DOWNLOAD_PATH/$BINARY_NAME" "$BINARY_PATH"
 
-if [ $? -ne 0 ]; then
+if ! mv "$DOWNLOAD_PATH/$BINARY_NAME" "$BINARY_PATH"; then
   echo "Failed to move the binary to $INSTALL_DIR."
   exit 1
 fi
@@ -83,20 +80,20 @@ echo "$BINARY_NAME installed successfully to $INSTALL_DIR."
 # Fish
 FISH_COMPLETION_DIR="$HOME/.config/fish/completions"
 if [ -d "$HOME/.config/fish/completions" ]; then
-  cp $DOWNLOAD_PATH/completions/jwtox.fish $FISH_COMPLETION_DIR
+  cp $DOWNLOAD_PATH/completions/jwtox.fish "$FISH_COMPLETION_DIR"
   echo "Fish completions installed successfully to $FISH_COMPLETION_DIR."
 fi
 
 # Bash
 BASH_COMPLETION_DIR="$HOME/.bash_completion.d"
 if [ -d "$HOME/share/bash-completion/completions" ]; then
-  cp $DOWNLOAD_PATH/completions/jwtox.bash $BASH_COMPLETION_DIR
+  cp $DOWNLOAD_PATH/completions/jwtox.bash "$BASH_COMPLETION_DIR"
   echo "Bash completions installed successfully to $BASH_COMPLETION_DIR."
 fi
 
 # Zsh
 ZSH_COMPLETION_DIR="$HOME/.zsh/completions"
 if [ -d "$HOME/.zsh/completions" ]; then
-  cp $DOWNLOAD_PATH/completions/_jwtox $HOME/.zsh/completions
+  cp $DOWNLOAD_PATH/completions/_jwtox "$HOME"/.zsh/completions
   echo "Zsh completions installed successfully to $ZSH_COMPLETION_DIR."
 fi
