@@ -363,7 +363,7 @@ fn does_not_alert_when_token_is_not_expired() -> Result<(), Box<dyn std::error::
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn verifies_rs256_signature_with_jwks() -> Result<(), Box<dyn std::error::Error>> {
+async fn verifies_rsa_signature_with_jwks() -> Result<(), Box<dyn std::error::Error>> {
     let private_key = get_static_private_key();
     let e_b64 = BASE64_URL_SAFE_NO_PAD.encode(private_key.e().to_bytes_be());
     let n_b64 = BASE64_URL_SAFE_NO_PAD.encode(private_key.n().to_bytes_be());
