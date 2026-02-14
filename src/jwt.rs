@@ -6,6 +6,8 @@ use rsa::signature::Verifier;
 use rsa::{BigUint, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use sha2::Sha384;
+use sha2::Sha512;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -39,6 +41,11 @@ pub enum Error {
 pub enum Algorithm {
     HS256,
     RS256,
+    RS384,
+    RS512,
+    ES256,
+    ES384,
+    ES512,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -78,8 +85,6 @@ impl Jwt {
             Algorithm::HS256 => {
                 let mut mac = HmacSha256::new_from_slice(key.as_bytes())
                     .expect("HMAC can take key of any size");
-                // let v_key = hmac::Key::new(hmac::HMAC_SHA256, key.as_bytes());
-                // hmac::verify(&v_key, data.as_bytes(), self.signature.signature.as_slice()).is_ok()
 
                 mac.update(data.as_bytes());
                 mac.verify_slice(&self.signature.signature).is_ok()
@@ -118,6 +123,191 @@ impl Jwt {
                     VerifyingKey::<Sha256>::new(public_key)
                         .verify(signing_input.as_bytes(), &sig)
                         .is_ok()
+                } else {
+                    false
+                }
+            }
+            Algorithm::RS384 => {
+                if let Jwk {
+                    params: KeyParameters::Rsa { n, e, .. },
+                    ..
+                } = jwk
+                {
+                    let n_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(n.as_bytes())
+                        .expect("Failed to decode n");
+                    let e_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(e.as_bytes())
+                        .expect("Failed to decode e");
+
+                    let public_key = RsaPublicKey::new(
+                        BigUint::from_bytes_be(&n_decoded),
+                        BigUint::from_bytes_be(&e_decoded),
+                    )
+                    .expect("Failed to create RSA public key");
+
+                    let parts = self.encoded.splitn(3, '.');
+                    let signing_input = parts.take(2).collect::<Vec<&str>>().join(".");
+
+                    let sig = RsaSignature::try_from(self.signature.signature.as_slice());
+                    let Ok(sig) = sig else { return false };
+
+                    VerifyingKey::<Sha384>::new(public_key)
+                        .verify(signing_input.as_bytes(), &sig)
+                        .is_ok()
+                } else {
+                    false
+                }
+            }
+            Algorithm::RS512 => {
+                if let Jwk {
+                    params: KeyParameters::Rsa { n, e, .. },
+                    ..
+                } = jwk
+                {
+                    let n_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(n.as_bytes())
+                        .expect("Failed to decode n");
+                    let e_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(e.as_bytes())
+                        .expect("Failed to decode e");
+
+                    let public_key = RsaPublicKey::new(
+                        BigUint::from_bytes_be(&n_decoded),
+                        BigUint::from_bytes_be(&e_decoded),
+                    )
+                    .expect("Failed to create RSA public key");
+
+                    let parts = self.encoded.splitn(3, '.');
+                    let signing_input = parts.take(2).collect::<Vec<&str>>().join(".");
+
+                    let sig = RsaSignature::try_from(self.signature.signature.as_slice());
+                    let Ok(sig) = sig else { return false };
+
+                    VerifyingKey::<Sha512>::new(public_key)
+                        .verify(signing_input.as_bytes(), &sig)
+                        .is_ok()
+                } else {
+                    false
+                }
+            }
+            Algorithm::ES256 => {
+                if let Jwk {
+                    params: KeyParameters::Ec { x, y, .. },
+                    ..
+                } = jwk
+                {
+                    let x_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(x.as_bytes())
+                        .expect("Failed to decode x");
+                    let y_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(y.as_bytes())
+                        .expect("Failed to decode y");
+
+                    use p256::{EncodedPoint, ecdsa::VerifyingKey as P256VerifyingKey};
+
+                    let mut uncompressed = vec![0x04];
+                    uncompressed.extend_from_slice(&x_decoded);
+                    uncompressed.extend_from_slice(&y_decoded);
+
+                    let point = EncodedPoint::from_bytes(&uncompressed)
+                        .expect("Failed to create encoded point");
+
+                    let verifying_key = P256VerifyingKey::from_encoded_point(&point);
+                    let Ok(verifying_key) = verifying_key else {
+                        return false;
+                    };
+
+                    let parts = self.encoded.splitn(3, '.');
+                    let signing_input = parts.take(2).collect::<Vec<&str>>().join(".");
+
+                    use p256::ecdsa::Signature as EcdsaSignature;
+                    let sig = EcdsaSignature::try_from(self.signature.signature.as_slice());
+                    let Ok(sig) = sig else { return false };
+
+                    use p256::ecdsa::signature::Verifier;
+                    verifying_key.verify(signing_input.as_bytes(), &sig).is_ok()
+                } else {
+                    false
+                }
+            }
+            Algorithm::ES384 => {
+                if let Jwk {
+                    params: KeyParameters::Ec { x, y, .. },
+                    ..
+                } = jwk
+                {
+                    let x_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(x.as_bytes())
+                        .expect("Failed to decode x");
+                    let y_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(y.as_bytes())
+                        .expect("Failed to decode y");
+
+                    use p384::{EncodedPoint, ecdsa::VerifyingKey as P384VerifyingKey};
+
+                    let mut uncompressed = vec![0x04];
+                    uncompressed.extend_from_slice(&x_decoded);
+                    uncompressed.extend_from_slice(&y_decoded);
+
+                    let point = EncodedPoint::from_bytes(&uncompressed)
+                        .expect("Failed to create encoded point");
+
+                    let verifying_key = P384VerifyingKey::from_encoded_point(&point);
+                    let Ok(verifying_key) = verifying_key else {
+                        return false;
+                    };
+
+                    let parts = self.encoded.splitn(3, '.');
+                    let signing_input = parts.take(2).collect::<Vec<&str>>().join(".");
+
+                    use p384::ecdsa::Signature as EcdsaSignature;
+                    let sig = EcdsaSignature::try_from(self.signature.signature.as_slice());
+                    let Ok(sig) = sig else { return false };
+
+                    use p384::ecdsa::signature::Verifier;
+                    verifying_key.verify(signing_input.as_bytes(), &sig).is_ok()
+                } else {
+                    false
+                }
+            }
+            Algorithm::ES512 => {
+                if let Jwk {
+                    params: KeyParameters::Ec { x, y, .. },
+                    ..
+                } = jwk
+                {
+                    let x_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(x.as_bytes())
+                        .expect("Failed to decode x");
+                    let y_decoded = BASE64_URL_SAFE_NO_PAD
+                        .decode(y.as_bytes())
+                        .expect("Failed to decode y");
+
+                    // ES512 uses P-521 curve (note: 521, not 512)
+                    use p521::{EncodedPoint, ecdsa::VerifyingKey as P521VerifyingKey};
+
+                    let mut uncompressed = vec![0x04];
+                    uncompressed.extend_from_slice(&x_decoded);
+                    uncompressed.extend_from_slice(&y_decoded);
+
+                    let point = EncodedPoint::from_bytes(&uncompressed)
+                        .expect("Failed to create encoded point");
+
+                    let verifying_key = P521VerifyingKey::from_encoded_point(&point);
+                    let Ok(verifying_key) = verifying_key else {
+                        return false;
+                    };
+
+                    let parts = self.encoded.splitn(3, '.');
+                    let signing_input = parts.take(2).collect::<Vec<&str>>().join(".");
+
+                    use p521::ecdsa::Signature as EcdsaSignature;
+                    let sig = EcdsaSignature::try_from(self.signature.signature.as_slice());
+                    let Ok(sig) = sig else { return false };
+
+                    use p521::ecdsa::signature::Verifier;
+                    verifying_key.verify(signing_input.as_bytes(), &sig).is_ok()
                 } else {
                     false
                 }

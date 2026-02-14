@@ -2,51 +2,23 @@ use assert_cmd::cargo;
 use assert_fs::prelude::*;
 use base64::prelude::*;
 use httpmock::prelude::*;
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::Header;
 use predicates::prelude::*;
 use rsa::RsaPrivateKey;
-use rsa::pkcs8::EncodePrivateKey;
+use rsa::pkcs1::EncodeRsaPrivateKey;
 use rsa::rand_core::OsRng;
 use rsa::traits::PublicKeyParts;
-use serde::Serialize;
 use serde_json::json;
 use std::sync::OnceLock;
+
+mod jwt_helper;
+
+use jwt_helper::JwtBuilder;
 
 fn secs_to_date(secs: i64) -> chrono::DateTime<chrono::Local> {
     chrono::DateTime::from_timestamp(secs, 0)
         .unwrap()
         .with_timezone(&chrono::Local)
-}
-
-fn create_hs256_jwt<T: Serialize>(claims: T, key: String) -> String {
-    let header = Header::new(Algorithm::HS256);
-
-    encode(&header, &claims, &EncodingKey::from_secret(key.as_ref())).unwrap()
-}
-
-fn create_rs256_jwt<T: Serialize>(claims: T, key: &RsaPrivateKey) -> String {
-    let header = Header::new(Algorithm::RS256);
-    let pem = key.to_pkcs8_pem(rsa::pkcs8::LineEnding::default()).unwrap();
-
-    encode(
-        &header,
-        &claims,
-        &EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap(),
-    )
-    .unwrap()
-}
-
-fn create_rs256_jwt_with_kid<T: Serialize>(claims: T, key: &RsaPrivateKey, kid: &str) -> String {
-    let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_string());
-    let pem = key.to_pkcs8_pem(rsa::pkcs8::LineEnding::default()).unwrap();
-
-    encode(
-        &header,
-        &claims,
-        &EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap(),
-    )
-    .unwrap()
 }
 
 static TEST_KEY: OnceLock<RsaPrivateKey> = OnceLock::new();
@@ -70,7 +42,8 @@ fn jwt_is_malformed() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn decodes_jwt() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
+
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg(jwt)
@@ -83,7 +56,7 @@ fn decodes_jwt() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn decodes_from_stdin() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -97,7 +70,7 @@ fn decodes_from_stdin() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn outputs_header_only() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -114,7 +87,7 @@ fn outputs_header_only() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -131,7 +104,7 @@ fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn verifies_valid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
 
     let file = assert_fs::NamedTempFile::new("keyfile.txt")?;
     file.write_str("secret")?;
@@ -150,7 +123,7 @@ fn verifies_valid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
 
     let file = assert_fs::NamedTempFile::new("keyfile.txt")?;
     file.write_str("wrong_secret")?;
@@ -170,7 +143,11 @@ fn rejects_invalid_hs256_signature() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn refuses_validate_rs256_signature() -> Result<(), Box<dyn std::error::Error>> {
     let private_key = RsaPrivateKey::new(&mut OsRng, 2048).expect("Failed to generate RSA key");
-    let jwt = create_rs256_jwt(json!({"sub": "test"}), &private_key);
+    let jwt = JwtBuilder::rs256(
+        json!({"sub": "test"}),
+        private_key.to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .build();
 
     let file = assert_fs::NamedTempFile::new("keyfile.txt")?;
     file.write_str("some_key")?;
@@ -197,7 +174,7 @@ fn issued_at_no_calc() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_hs256_jwt(claims, "secret".into());
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -221,7 +198,7 @@ fn friendly_date_displays() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_hs256_jwt(claims, "secret".into());
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -263,7 +240,7 @@ fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_hs256_jwt(claims, "secret".into());
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -292,7 +269,7 @@ fn utc_date_displays() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn decodes_jwt_with_no_color() -> Result<(), Box<dyn std::error::Error>> {
-    let jwt = create_hs256_jwt(json!({"sub": "test"}), "secret".into());
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
     cmd.arg("--no-color")
@@ -327,7 +304,7 @@ fn alerts_when_token_is_expired() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now - 7200,
     });
 
-    let jwt = create_hs256_jwt(claims, "secret".into());
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -350,7 +327,7 @@ fn alerts_when_token_will_expire() -> Result<(), Box<dyn std::error::Error>> {
         "nbf": now,
     });
 
-    let jwt = create_hs256_jwt(claims, "secret".into());
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -373,7 +350,7 @@ fn does_not_alert_when_token_is_not_expired() -> Result<(), Box<dyn std::error::
         "nbf": now,
     });
 
-    let jwt = create_hs256_jwt(claims, "secret".into());
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -386,7 +363,7 @@ fn does_not_alert_when_token_is_not_expired() -> Result<(), Box<dyn std::error::
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn verifies_signature_with_jwks() -> Result<(), Box<dyn std::error::Error>> {
+async fn verifies_rs256_signature_with_jwks() -> Result<(), Box<dyn std::error::Error>> {
     let private_key = get_static_private_key();
     let e_b64 = BASE64_URL_SAFE_NO_PAD.encode(private_key.e().to_bytes_be());
     let n_b64 = BASE64_URL_SAFE_NO_PAD.encode(private_key.n().to_bytes_be());
@@ -414,14 +391,18 @@ async fn verifies_signature_with_jwks() -> Result<(), Box<dyn std::error::Error>
             );
     });
 
-    let jwt = create_rs256_jwt_with_kid(
+    let jwt = JwtBuilder::rs256(
         json!({
             "sub": "test",
             "iss": server.url("/"),
         }),
-        private_key,
-        "test-key",
-    );
+        private_key.to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .with_headers(Header {
+        kid: Some("test-key".to_string()),
+        ..Default::default()
+    })
+    .build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -464,13 +445,14 @@ async fn fails_verification_with_jwks_when_kid_missing() -> Result<(), Box<dyn s
             );
     });
 
-    let jwt = create_rs256_jwt(
+    let jwt = JwtBuilder::rs256(
         json!({
             "sub": "test",
             "iss": server.url("/"),
         }),
-        private_key,
-    );
+        private_key.to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -512,13 +494,17 @@ async fn fails_verification_with_jwks_when_iss_missing() -> Result<(), Box<dyn s
             );
     });
 
-    let jwt = create_rs256_jwt_with_kid(
+    let jwt = JwtBuilder::rs256(
         json!({
             "sub": "test",
         }),
-        private_key,
-        "test-key",
-    );
+        private_key.to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .with_headers(Header {
+        kid: Some("test-key".to_string()),
+        ..Default::default()
+    })
+    .build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
@@ -558,14 +544,18 @@ async fn stores_http_response_in_cache() -> Result<(), Box<dyn std::error::Error
             );
     });
 
-    let jwt = create_rs256_jwt_with_kid(
+    let jwt = JwtBuilder::rs256(
         json!({
             "sub": "test",
             "iss": server.url("/"),
         }),
-        get_static_private_key(),
-        "test-key",
-    );
+        get_static_private_key().to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .with_headers(Header {
+        kid: Some("test-key".to_string()),
+        ..Default::default()
+    })
+    .build();
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
