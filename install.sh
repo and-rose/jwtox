@@ -46,9 +46,7 @@ rm -rf /tmp/jwtox*
 echo "Downloading $BINARY_NAME from $BINARY_URL"
 
 # Download the binary
-curl -sSL -o "/tmp/$TARBALL_NAME" "$BINARY_URL"
-
-if [ $? -ne 0 ]; then
+if ! curl -fsSL -o "/tmp/$TARBALL_NAME" "$BINARY_URL"; then
   echo "Download failed!"
   exit 1
 fi
