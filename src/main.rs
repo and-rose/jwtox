@@ -14,7 +14,7 @@ use url::Url;
 
 use cli::JWTOXArgs;
 use http_cache::HttpCache;
-use jwks::Jwks;
+use jwks::{Jwks, OpenIdConfig};
 
 const JWT_ICON: char = '✻';
 
@@ -184,11 +184,30 @@ async fn main() -> anyhow::Result<()> {
         let kid = jwt.header.kid.as_ref().ok_or(Error::KidHeaderMissing)?;
         let alg = &jwt.header.alg;
 
+        // Reach out to the authority specified in the "iss" claim using the OpenID Connect
+        // discovery endpoint to get the JWKs URL
+        let openid_config_url = iss
+            .join(".well-known/openid-configuration")
+            .expect("Failed to join URL");
+
+        let client = Client::new();
+
+        let openid_config_response = if args.no_cache {
+            client
+                .get(openid_config_url)
+                .send()
+                .await?
+                .error_for_status()?
+                .json::<OpenIdConfig>()
+                .await?
+        } else {
+            cache.get_or_fetch(&client, &openid_config_url).await?
+        };
+
         // Reach out to the authority specified in the "iss" claim using the JWKs endpoint
         let jwks_url = iss
-            .join(".well-known/jwks.json")
+            .join(&openid_config_response.jwks_uri)
             .expect("Failed to join URL");
-        let client = Client::new();
 
         let jwks_response = if args.no_cache {
             client

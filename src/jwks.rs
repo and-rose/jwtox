@@ -46,3 +46,9 @@ pub struct Jwk {
 pub struct Jwks {
     pub keys: Vec<Jwk>,
 }
+
+/// OpenID Connect Discovery Document
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenIdConfig {
+    pub jwks_uri: String,
+}

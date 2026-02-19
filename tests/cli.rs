@@ -370,6 +370,18 @@ async fn verifies_rsa_signature_with_jwks() -> Result<(), Box<dyn std::error::Er
 
     let server = MockServer::start_async().await;
 
+    let openid_mock = server.mock(|when, then| {
+        when.method(GET).path("/.well-known/openid-configuration");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "jwks_uri": "/.well-known/jwks.json"
+                })
+                .to_string(),
+            );
+    });
+
     let jwks_mock = server.mock(|when, then| {
         when.method(GET).path("/.well-known/jwks.json");
         then.status(200)
@@ -412,6 +424,7 @@ async fn verifies_rsa_signature_with_jwks() -> Result<(), Box<dyn std::error::Er
         .success()
         .stdout(predicate::str::contains("Signature ✓"));
 
+    openid_mock.assert_async().await;
     jwks_mock.assert_async().await;
 
     Ok(())
@@ -523,6 +536,18 @@ async fn fails_verification_with_jwks_when_iss_missing() -> Result<(), Box<dyn s
 async fn stores_http_response_in_cache() -> Result<(), Box<dyn std::error::Error>> {
     let server = MockServer::start_async().await;
 
+    let openid_mock = server.mock(|when, then| {
+        when.method(GET).path("/.well-known/openid-configuration");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "jwks_uri": "/.well-known/jwks.json"
+                })
+                .to_string(),
+            );
+    });
+
     let jwks_mock = server.mock(|when, then| {
         when.method(GET).path("/.well-known/jwks.json");
         then.status(200)
@@ -566,6 +591,7 @@ async fn stores_http_response_in_cache() -> Result<(), Box<dyn std::error::Error
         .stdout(predicate::str::contains("Signature ✓"));
 
     // Assert that the JWKS endpoint was called
+    openid_mock.assert_async().await;
     jwks_mock.assert_async().await;
 
     // Assert that the cache file was created
@@ -577,6 +603,66 @@ async fn stores_http_response_in_cache() -> Result<(), Box<dyn std::error::Error
     let cache_file = cache_dir.join(format!("{}.json", cache_key));
 
     assert!(cache_file.exists());
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn follows_openid_configuration() -> Result<(), Box<dyn std::error::Error>> {
+    let server = MockServer::start_async().await;
+
+    let openid_mock = server.mock(|when, then| {
+        when.method(GET).path("/.well-known/openid-configuration");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "jwks_uri": "/a-very-different-path/strange.json"
+                })
+                .to_string(),
+            );
+    });
+
+    let jwks_mock = server.mock(|when, then| {
+        when.method(GET).path("/a-very-different-path/strange.json");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "keys": [
+                        {
+                            "kty": "RSA",
+                            "kid": "test-key",
+                            "use": "sig",
+                            "alg": "RS256",
+                            "n": BASE64_URL_SAFE_NO_PAD.encode(get_static_private_key().n().to_bytes_be()),
+                            "e": BASE64_URL_SAFE_NO_PAD.encode(get_static_private_key().e().to_bytes_be())
+                        }
+                    ]
+                })
+                .to_string(),
+            );
+    });
+
+    let jwt = JwtBuilder::rs256(
+        json!({
+            "sub": "test",
+            "iss": server.url("/"),
+        }),
+        get_static_private_key().to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .with_headers(Header {
+        kid: Some("test-key".to_string()),
+        ..Default::default()
+    })
+    .build();
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--verify-jwks").arg(jwt).assert().success();
+
+    openid_mock.assert_async().await;
+    jwks_mock.assert_async().await;
 
     Ok(())
 }
