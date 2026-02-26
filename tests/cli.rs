@@ -695,3 +695,79 @@ fn clears_cache_with_clear_cache_flag() -> Result<(), Box<dyn std::error::Error>
 
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn bypasses_cache_with_no_cache_flag() -> Result<(), Box<dyn std::error::Error>> {
+    let server = MockServer::start_async().await;
+
+    let openid_mock = server.mock(|when, then| {
+        when.method(GET).path("/.well-known/openid-configuration");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "jwks_uri": "/.well-known/jwks.json"
+                })
+                .to_string(),
+            );
+    });
+
+    let jwks_mock = server.mock(|when, then| {
+        when.method(GET).path("/.well-known/jwks.json");
+        then.status(200)
+            .header("Content-Type", "application/json")
+            .body(
+                json!({
+                    "keys": [
+                        {
+                            "kty": "RSA",
+                            "kid": "test-key",
+                            "use": "sig",
+                            "alg": "RS256",
+                            "n": BASE64_URL_SAFE_NO_PAD.encode(get_static_private_key().n().to_bytes_be()),
+                            "e": BASE64_URL_SAFE_NO_PAD.encode(get_static_private_key().e().to_bytes_be())
+                        }
+                    ]
+                })
+                .to_string(),
+            );
+    });
+
+    let jwt = JwtBuilder::rs256(
+        json!({
+            "sub": "test",
+            "iss": server.url("/"),
+        }),
+        get_static_private_key().to_pkcs1_der().unwrap().as_bytes(),
+    )
+    .with_headers(Header {
+        kid: Some("test-key".to_string()),
+        ..Default::default()
+    })
+    .build();
+
+    let cache_dir = dirs::cache_dir().unwrap().join("jwtox");
+    std::fs::create_dir_all(&cache_dir)?;
+
+    let cache_key = format!(
+        "{:x}",
+        md5::compute(server.url("/.well-known/jwks.json").as_str())
+    );
+    let cache_file = cache_dir.join(format!("{}.json", cache_key));
+    std::fs::write(&cache_file, "cached data that will be bypassed")?;
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--verify-jwks")
+        .arg("--no-cache")
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Signature ✓"));
+
+    // Assert that the OpenID configuration endpoint was called, proving that the cache was bypassed
+    openid_mock.assert_async().await;
+    jwks_mock.assert_async().await;
+
+    Ok(())
+}
