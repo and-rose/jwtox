@@ -666,3 +666,34 @@ async fn follows_openid_configuration() -> Result<(), Box<dyn std::error::Error>
 
     Ok(())
 }
+
+#[test]
+fn clears_cache_with_clear_cache_flag() -> Result<(), Box<dyn std::error::Error>> {
+    // load data into cache first
+    let cache_dir = dirs::cache_dir().unwrap().join("jwtox");
+    std::fs::create_dir_all(&cache_dir)?;
+
+    let cache_key = format!(
+        "{:x}",
+        md5::compute("https://example.com/.well-known/jwks.json")
+    );
+    let cache_file = cache_dir.join(format!("{}.json", cache_key));
+    std::fs::write(&cache_file, "cached data")?;
+
+    // assert that the cache file exists
+    assert!(cache_file.exists());
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--clear-cache")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("All cached responses cleared."));
+
+    // check cache dir is empty
+    println!("Cache directory: {:?}", cache_dir);
+    let cache_files = std::fs::read_dir(&cache_dir)?.count();
+    assert_eq!(cache_files, 0);
+
+    Ok(())
+}

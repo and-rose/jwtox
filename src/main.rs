@@ -117,8 +117,8 @@ async fn main() -> anyhow::Result<()> {
     if args.clear_cache {
         cache.clear_all()?;
         println!("All cached responses cleared.");
-        // If only clearing cache (no JWT provided, we're done
-        if args.jwt_string.is_none() && std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        // If only clearing cache (no JWT provided, we're done)
+        if args.jwt_string.is_none() || std::io::IsTerminal::is_terminal(&std::io::stdin()) {
             return Ok(());
         }
     }
