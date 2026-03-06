@@ -1,6 +1,6 @@
 [package]
 name = "jwtox"
-version = "1.5.0"
+version = "1.5.1"
 edition = "2024"
 
 build = "build.rs"
@@ -20,7 +20,7 @@ md5 = "0.8.0"
 p256 = { version = "0.13", features = ["ecdsa"] }
 p384 = { version = "0.13", features = ["ecdsa"] }
 p521 = { version = "0.13", features = ["ecdsa"] }
-reqwest = { version = "0.13.1", features = ["json"] }
+reqwest = { version = "0.13.2", features = ["json"] }
 rsa = "0.9.10"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
