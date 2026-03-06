@@ -691,7 +691,7 @@ fn clears_cache_with_clear_cache_flag() -> Result<(), Box<dyn std::error::Error>
         .stdout(predicate::str::contains("All cached responses cleared."));
 
     // check jwtox dir is removed
-    assert!(!cache_dir.try_exists()?);
+    assert!(!cache_dir.exists());
 
     Ok(())
 }
