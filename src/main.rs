@@ -111,7 +111,14 @@ fn read_from_stdin() -> String {
 async fn main() -> anyhow::Result<()> {
     let args = JWTOXArgs::parse();
 
-    let cache = HttpCache::new("jwtox", 3600)?;
+    let cache_dir = if let Ok(dir) = std::env::var("JWTOX_CACHE_DIR") {
+        std::path::PathBuf::from(dir)
+    } else {
+        dirs::cache_dir()
+            .ok_or(anyhow::anyhow!("Could not determine cache directory"))?
+            .join("jwtox")
+    };
+    let cache = HttpCache::new(cache_dir, 3600)?;
 
     // Clear cache first if requested
     if args.clear_cache {

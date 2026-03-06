@@ -27,11 +27,7 @@ pub struct HttpCache {
 }
 
 impl HttpCache {
-    pub fn new(app_name: &str, ttl_seconds: u64) -> anyhow::Result<Self> {
-        let cache_dir = dirs::cache_dir()
-            .ok_or(anyhow::anyhow!("Could not determine cache directory"))?
-            .join(app_name);
-
+    pub fn new(cache_dir: PathBuf, ttl_seconds: u64) -> anyhow::Result<Self> {
         std::fs::create_dir_all(&cache_dir)?;
 
         Ok(Self {

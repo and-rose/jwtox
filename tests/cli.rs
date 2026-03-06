@@ -582,25 +582,24 @@ async fn stores_http_response_in_cache() -> Result<(), Box<dyn std::error::Error
     })
     .build();
 
-    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
-
-    cmd.arg("--verify-jwks")
-        .arg(jwt)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Signature ✓"));
-
-    // Assert that the JWKS endpoint was called
-    openid_mock.assert_async().await;
-    jwks_mock.assert_async().await;
-
-    // Assert that the cache file was created
-    let cache_dir = dirs::cache_dir().unwrap().join("jwtox");
+    let cache_dir = assert_fs::TempDir::new()?;
     let cache_key = format!(
         "{:x}",
         md5::compute(server.url("/.well-known/jwks.json").as_str())
     );
     let cache_file = cache_dir.join(format!("{}.json", cache_key));
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.env("JWTOX_CACHE_DIR", cache_dir.path())
+        .arg("--verify-jwks")
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Signature ✓"));
+
+    openid_mock.assert_async().await;
+    jwks_mock.assert_async().await;
 
     assert!(cache_file.exists());
 
@@ -670,8 +669,7 @@ async fn follows_openid_configuration() -> Result<(), Box<dyn std::error::Error>
 #[test]
 fn clears_cache_with_clear_cache_flag() -> Result<(), Box<dyn std::error::Error>> {
     // load data into cache first
-    let cache_dir = dirs::cache_dir().unwrap().join("jwtox");
-    std::fs::create_dir_all(&cache_dir)?;
+    let cache_dir = assert_fs::TempDir::new()?;
 
     let cache_key = format!(
         "{:x}",
@@ -685,7 +683,8 @@ fn clears_cache_with_clear_cache_flag() -> Result<(), Box<dyn std::error::Error>
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
-    cmd.arg("--clear-cache")
+    cmd.env("JWTOX_CACHE_DIR", cache_dir.path())
+        .arg("--clear-cache")
         .assert()
         .success()
         .stdout(predicate::str::contains("All cached responses cleared."));
@@ -746,8 +745,7 @@ async fn bypasses_cache_with_no_cache_flag() -> Result<(), Box<dyn std::error::E
     })
     .build();
 
-    let cache_dir = dirs::cache_dir().unwrap().join("jwtox");
-    std::fs::create_dir_all(&cache_dir)?;
+    let cache_dir = assert_fs::TempDir::new()?;
 
     let cache_key = format!(
         "{:x}",
@@ -758,7 +756,8 @@ async fn bypasses_cache_with_no_cache_flag() -> Result<(), Box<dyn std::error::E
 
     let mut cmd = cargo::cargo_bin_cmd!("jwtox");
 
-    cmd.arg("--verify-jwks")
+    cmd.env("JWTOX_CACHE_DIR", cache_dir.path())
+        .arg("--verify-jwks")
         .arg("--no-cache")
         .arg(jwt)
         .assert()
