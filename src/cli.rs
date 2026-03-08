@@ -19,16 +19,28 @@ pub struct JWTOXArgs {
     pub no_color: bool,
 
     /// Only print the header as JSON
-    #[clap(long = "header-only", short = 'H', conflicts_with = "payload_only")]
+    #[clap(long = "header-only", short = 'H', conflicts_with_all = ["payload_only", "signature_only"])]
     pub header_only: bool,
 
     /// Only print the payload as JSON
-    #[clap(long = "payload-only", short = 'p', conflicts_with = "header_only")]
+    #[clap(long = "payload-only", short = 'P', conflicts_with_all = ["header_only", "signature_only"])]
     pub payload_only: bool,
+
+    /// pretty print the output instead of compact JSON (only applies when printing header and/or payload)
+    #[clap(long = "pretty", short = 'p', requires_all = ["header_only", "payload_only"])]
+    pub pretty: bool,
+
+    /// Only print the signature as a base64 string
+    #[clap(long = "signature-only", short = 'S', conflicts_with_all = ["header_only", "payload_only"])]
+    pub signature_only: bool,
 
     /// Print dates in UTC instead of local time
     #[clap(long = "utc", short = 'u')]
     pub utc: bool,
+
+    /// Extract a single, top-level claim from the payload
+    #[clap(long = "field", short = 'f')]
+    pub field: Option<String>,
 
     /// The key to use for signature verification
     #[clap(long = "key-file", short = 'k')]

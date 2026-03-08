@@ -150,16 +150,38 @@ async fn main() -> anyhow::Result<()> {
         colored::control::set_override(false);
     }
 
-    let header = serde_json::to_string_pretty(&jwt.header).expect("Failed to serialize header");
-    let payload = serde_json::to_string_pretty(&jwt.payload).expect("Failed to serialize payload");
-
+    // don't pretty print if only printing header or payload
     if args.header_only {
+        let header = if args.pretty {
+            serde_json::to_string_pretty(&jwt.header).expect("Failed to serialize header")
+        } else {
+            serde_json::to_string(&jwt.header).expect("Failed to serialize header")
+        };
+
         println!("{}", header);
         return Ok(());
     }
 
     if args.payload_only {
+        let payload = if args.pretty {
+            serde_json::to_string_pretty(&jwt.payload).expect("Failed to serialize payload")
+        } else {
+            serde_json::to_string(&jwt.payload).expect("Failed to serialize payload")
+        };
         println!("{}", payload);
+        return Ok(());
+    }
+
+    if args.signature_only {
+        println!("{}", jwt.signature.encoded);
+        return Ok(());
+    }
+
+    if let Some(field) = &args.field {
+        match jwt.try_get_claim(field) {
+            Some(v) => println!("{}", v.as_str().unwrap_or(&v.to_string())),
+            None => println!("Claim '{field}' not found in payload."),
+        }
         return Ok(());
     }
 

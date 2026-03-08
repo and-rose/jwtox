@@ -21,6 +21,8 @@ Register-ArgumentCompleter -Native -CommandName 'jwtox' -ScriptBlock {
 
     $completions = @(switch ($command) {
         'jwtox' {
+            [CompletionResult]::new('-f', '-f', [CompletionResultType]::ParameterName, 'Extract a single, top-level claim from the payload')
+            [CompletionResult]::new('--field', '--field', [CompletionResultType]::ParameterName, 'Extract a single, top-level claim from the payload')
             [CompletionResult]::new('-k', '-k', [CompletionResultType]::ParameterName, 'The key to use for signature verification')
             [CompletionResult]::new('--key-file', '--key-file', [CompletionResultType]::ParameterName, 'The key to use for signature verification')
             [CompletionResult]::new('-c', '-c', [CompletionResultType]::ParameterName, 'Do not calculate the dates for iat, exp, and nbf')
@@ -29,8 +31,12 @@ Register-ArgumentCompleter -Native -CommandName 'jwtox' -ScriptBlock {
             [CompletionResult]::new('--no-color', '--no-color', [CompletionResultType]::ParameterName, 'No color output')
             [CompletionResult]::new('-H', '-H ', [CompletionResultType]::ParameterName, 'Only print the header as JSON')
             [CompletionResult]::new('--header-only', '--header-only', [CompletionResultType]::ParameterName, 'Only print the header as JSON')
-            [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'Only print the payload as JSON')
+            [CompletionResult]::new('-P', '-P ', [CompletionResultType]::ParameterName, 'Only print the payload as JSON')
             [CompletionResult]::new('--payload-only', '--payload-only', [CompletionResultType]::ParameterName, 'Only print the payload as JSON')
+            [CompletionResult]::new('-p', '-p', [CompletionResultType]::ParameterName, 'pretty print the output instead of compact JSON (only applies when printing header and/or payload)')
+            [CompletionResult]::new('--pretty', '--pretty', [CompletionResultType]::ParameterName, 'pretty print the output instead of compact JSON (only applies when printing header and/or payload)')
+            [CompletionResult]::new('-S', '-S ', [CompletionResultType]::ParameterName, 'Only print the signature as a base64 string')
+            [CompletionResult]::new('--signature-only', '--signature-only', [CompletionResultType]::ParameterName, 'Only print the signature as a base64 string')
             [CompletionResult]::new('-u', '-u', [CompletionResultType]::ParameterName, 'Print dates in UTC instead of local time')
             [CompletionResult]::new('--utc', '--utc', [CompletionResultType]::ParameterName, 'Print dates in UTC instead of local time')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint')

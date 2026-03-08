@@ -78,9 +78,29 @@ fn outputs_header_only() -> Result<(), Box<dyn std::error::Error>> {
         .arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"alg\": \"HS256\""))
-        .stdout(predicate::str::contains("\"typ\": \"JWT\""))
-        .stdout(predicate::str::contains("\"sub\": \"test\"").count(0));
+        .stdout(concat!(r#"{"alg":"HS256","typ":"JWT"}"#, "\n"));
+
+    Ok(())
+}
+
+#[test]
+fn outputs_pretty_header() -> Result<(), Box<dyn std::error::Error>> {
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--header-only")
+        .arg("--pretty")
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout(
+            r#"{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+"#,
+        );
 
     Ok(())
 }
@@ -95,9 +115,45 @@ fn outputs_payload_only() -> Result<(), Box<dyn std::error::Error>> {
         .arg(jwt)
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"sub\": \"test\""))
-        .stdout(predicate::str::contains("\"alg\": \"HS256\"").count(0))
-        .stdout(predicate::str::contains("\"typ\": \"JWT\"").count(0));
+        .stdout(concat!(r#"{"sub":"test"}"#, "\n"));
+
+    Ok(())
+}
+
+#[test]
+fn outputs_pretty_payload() -> Result<(), Box<dyn std::error::Error>> {
+    let jwt = JwtBuilder::hs256(json!({"sub": "test", "name": "John Doe"}), "secret").build();
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--payload-only")
+        .arg("--pretty")
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout(
+            r#"{
+  "name": "John Doe",
+  "sub": "test"
+}
+"#,
+        );
+
+    Ok(())
+}
+
+#[test]
+fn outputs_signature_only() -> Result<(), Box<dyn std::error::Error>> {
+    let jwt = JwtBuilder::hs256(json!({"sub": "test"}), "secret").build();
+    let expected_signature = jwt.split('.').nth(2).unwrap().to_string();
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--signature-only")
+        .arg(&jwt)
+        .assert()
+        .success()
+        .stdout(format!("{}\n", expected_signature));
 
     Ok(())
 }
@@ -767,6 +823,22 @@ async fn bypasses_cache_with_no_cache_flag() -> Result<(), Box<dyn std::error::E
     // Assert that the OpenID configuration endpoint was called, proving that the cache was bypassed
     openid_mock.assert_async().await;
     jwks_mock.assert_async().await;
+
+    Ok(())
+}
+
+#[test]
+fn prints_single_field_with_field_flag() -> Result<(), Box<dyn std::error::Error>> {
+    let jwt = JwtBuilder::hs256(json!({"sub": "test", "name": "John Doe"}), "secret").build();
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg("--field")
+        .arg("name")
+        .arg(jwt)
+        .assert()
+        .success()
+        .stdout("John Doe\n");
 
     Ok(())
 }

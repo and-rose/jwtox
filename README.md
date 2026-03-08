@@ -76,19 +76,22 @@ echo "your.jwt.token" | jwtox
 
 ### Command-Line Options
 
-| Option              | Short | Description                                                 |
-| ------------------- | ----- | ----------------------------------------------------------- |
-| `--no-calc`         | `-c`  | Skip calculating human-readable dates for iat, exp, and nbf |
-| `--no-color`        | `-n`  | Disable colorized output                                    |
-| `--header-only`     | `-H`  | Only print the JWT header                                   |
-| `--payload-only`    | `-p`  | Only print the JWT payload                                  |
-| `--utc`             | `-u`  | Display dates in UTC instead of local time                  |
-| `--key-file <FILE>` | `-k`  | Verify signature using a key file                           |
-| `--verify-jwks`     | `-v`  | Verify signature using the issuer's JWKS endpoint           |
-| `--no-cache`        | `-C`  | Disable caching of JWKS responses                           |
-| `--clear-cache`     | `-X`  | Clear the JWKS cache                                        |
-| `--help`            | `-h`  | Display help information                                    |
-| `--version`         | `-V`  | Display version information                                 |
+| Option              | Short | Description                                                                         |
+| ------------------- | ----- | ----------------------------------------------------------------------------------- |
+| `--no-calc`         | `-c`  | Skip calculating human-readable dates for iat, exp, and nbf                         |
+| `--no-color`        | `-n`  | Disable colorized output                                                            |
+| `--header-only`     | `-H`  | Only print the JWT header                                                           |
+| `--payload-only`    | `-P`  | Only print the JWT payload                                                          |
+| `--signature-only`  | `-S`  | Only print the JWT signature                                                        |
+| `--pretty`          | `-p`  | Requires `--payload-only` or `--header-only` to be set. Pretty prints json content. |
+| `--field <FIELD>`   | `-f`  | prints the value of a specific top-level field in the payload body                  |
+| `--utc`             | `-u`  | Display dates in UTC instead of local time                                          |
+| `--key-file <FILE>` | `-k`  | Verify signature using a key file                                                   |
+| `--verify-jwks`     | `-v`  | Verify signature using the issuer's JWKS endpoint                                   |
+| `--no-cache`        | `-C`  | Disable caching of JWKS responses                                                   |
+| `--clear-cache`     | `-X`  | Clear the JWKS cache                                                                |
+| `--help`            | `-h`  | Display help information                                                            |
+| `--version`         | `-V`  | Display version information                                                         |
 
 ### Examples
 
@@ -101,7 +104,13 @@ jwtox -H your.jwt.token
 **Decode only the payload:**
 
 ```bash
-jwtox -p your.jwt.token
+jwtox -P your.jwt.token
+```
+
+**Decode only the payload and pretty print it:**
+
+```bash
+jwtox -Pp your.jwt.token
 ```
 
 **Verify signature with JWKS:**

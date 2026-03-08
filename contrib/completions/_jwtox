@@ -15,16 +15,22 @@ _jwtox() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : \
+'-f+[Extract a single, top-level claim from the payload]:FIELD:_default' \
+'--field=[Extract a single, top-level claim from the payload]:FIELD:_default' \
 '-k+[The key to use for signature verification]:KEY_FILE:_default' \
 '--key-file=[The key to use for signature verification]:KEY_FILE:_default' \
 '-c[Do not calculate the dates for iat, exp, and nbf]' \
 '--no-calc[Do not calculate the dates for iat, exp, and nbf]' \
 '-n[No color output]' \
 '--no-color[No color output]' \
-'(-p --payload-only)-H[Only print the header as JSON]' \
-'(-p --payload-only)--header-only[Only print the header as JSON]' \
-'(-H --header-only)-p[Only print the payload as JSON]' \
-'(-H --header-only)--payload-only[Only print the payload as JSON]' \
+'(-P --payload-only -S --signature-only)-H[Only print the header as JSON]' \
+'(-P --payload-only -S --signature-only)--header-only[Only print the header as JSON]' \
+'(-H --header-only -S --signature-only)-P[Only print the payload as JSON]' \
+'(-H --header-only -S --signature-only)--payload-only[Only print the payload as JSON]' \
+'-p[pretty print the output instead of compact JSON (only applies when printing header and/or payload)]' \
+'--pretty[pretty print the output instead of compact JSON (only applies when printing header and/or payload)]' \
+'(-H --header-only -P --payload-only)-S[Only print the signature as a base64 string]' \
+'(-H --header-only -P --payload-only)--signature-only[Only print the signature as a base64 string]' \
 '-u[Print dates in UTC instead of local time]' \
 '--utc[Print dates in UTC instead of local time]' \
 '(-k --key-file)-v[Verify the signature by reaching out to the authority specified in the "iss" claim using the JWKs endpoint]' \
