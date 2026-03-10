@@ -25,8 +25,8 @@ pub enum Error {
     InvalidHeader,
     #[error("Failed to serialize payload")]
     SerializePayload,
-    #[error("Failed to parse int")]
-    ParseInt(std::num::ParseIntError),
+    #[error("Failed to parse timestamp")]
+    InvalidTimestamp,
     #[error("Algorithm not supported")]
     AlgorithmNotSupported,
     #[error("iss claim is missing or not a URL")]

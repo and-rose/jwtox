@@ -18,10 +18,12 @@ use jwks::{Jwks, OpenIdConfig};
 
 const JWT_ICON: char = '✻';
 
-fn secs_str_to_date(secs: &str) -> Result<DateTime<chrono::Utc>, Error> {
-    let millis = secs.parse::<i64>().map_err(Error::ParseInt)?;
-    let date = DateTime::from_timestamp(millis, 0).expect("Failed to parse int");
-    Ok(date)
+fn value_to_date(value: &serde_json::Value) -> Result<DateTime<chrono::Utc>, Error> {
+    let secs = value
+        .as_i64()
+        .or_else(|| value.as_f64().map(|f| f as i64))
+        .ok_or(Error::InvalidTimestamp)?;
+    DateTime::from_timestamp(secs, 0).ok_or(Error::InvalidTimestamp)
 }
 
 #[inline]
@@ -53,7 +55,7 @@ fn print_signature(signature: &str, valid: Option<bool>) {
 fn print_claim_dates(jwt: &Jwt, utc: bool) -> Result<(), Error> {
     for &claim_name in &["exp", "iat", "nbf"] {
         if let Some(claim_value) = jwt.try_get_claim(claim_name) {
-            let date = secs_str_to_date(&claim_value.to_string())?;
+            let date = value_to_date(claim_value)?;
             let claim_value = claim_value.to_string();
 
             if utc {
@@ -76,7 +78,7 @@ fn print_claim_dates(jwt: &Jwt, utc: bool) -> Result<(), Error> {
 
     // log if token is expired
     if let Some(claim_value) = jwt.try_get_claim("exp") {
-        let date = secs_str_to_date(&claim_value.to_string())?;
+        let date = value_to_date(claim_value)?;
         let now = chrono::Utc::now();
         let duration = date - now;
         if duration.num_seconds() < 0 {

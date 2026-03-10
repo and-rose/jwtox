@@ -842,3 +842,30 @@ fn prints_single_field_with_field_flag() -> Result<(), Box<dyn std::error::Error
 
     Ok(())
 }
+
+#[test]
+fn serializes_date_fields_when_float_type() -> Result<(), Box<dyn std::error::Error>> {
+    let now = chrono::Local::now().timestamp() as f64;
+
+    let claims = json!({
+        "sub": "test",
+        "iat": now,
+        "exp": now + 3600.123,
+        "nbf": now,
+    });
+
+    let jwt = JwtBuilder::hs256(claims, "secret").build();
+
+    let mut cmd = cargo::cargo_bin_cmd!("jwtox");
+
+    cmd.arg(jwt)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(format!(
+            "exp: {} {}",
+            now + 3600.123,
+            secs_to_date((now + 3600.123) as i64)
+        )));
+
+    Ok(())
+}
