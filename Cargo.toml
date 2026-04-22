@@ -39,7 +39,7 @@ assert_cmd = "2.2.0"
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 predicates = "3.1.4"
 pretty_assertions = "1.4.1"
-rand = "0.10.0"
+rand = "0.10.1"
 rsa = { version = "0.9.10", features = ["pem", "std"] }
 httpmock = "0.8.3"
 assert_fs = "1.1.3"
