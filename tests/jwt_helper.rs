@@ -59,7 +59,7 @@ impl JwtBuilder {
         // Use the correct EncodingKey based on the algorithm
         let encoding_key = match self.algorithm {
             Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512 => {
-                EncodingKey::from_secret(&self.key)
+                EncodingKey::from_secret(&self.key).expect("Failed to create HMAC encoding key")
             }
             Algorithm::RS256 | Algorithm::RS384 | Algorithm::RS512 => {
                 EncodingKey::from_rsa_der(&self.key)
